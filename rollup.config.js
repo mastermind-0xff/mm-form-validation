@@ -9,10 +9,10 @@ const typescriptPlugin = () =>
     outDir: undefined,
   });
 
-// no dependencies: the core runs in browsers and in Node as it is. Add the
-// `dom` and `testing` entries here (and to package.json "exports") when
-// their modules land (plan, phases 3 and 4)
-const input = ['src/index.ts'];
+// no dependencies: the core runs in browsers and in Node as it is. Three
+// entries, also in package.json "exports": the core, the browser binding and
+// the test helpers
+const input = ['src/index.ts', 'src/dom/index.ts', 'src/testing/index.ts'];
 
 export default [
   {

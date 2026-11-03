@@ -16,9 +16,15 @@ export default tseslint.config(
   },
   js.configs.recommended,
   {
-    // root configs and examples run in Node
-    files: ['*.js', 'examples/**/*.js'],
+    // root configs and the examples' server run in Node
+    files: ['*.js', 'examples/server.js'],
     languageOptions: { globals: globals.node },
+  },
+  {
+    // the examples' page scripts run in the browser
+    files: ['examples/**/*.js'],
+    ignores: ['examples/server.js'],
+    languageOptions: { globals: globals.browser },
   },
   {
     files: ['src/**/*.ts'],

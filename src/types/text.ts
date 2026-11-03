@@ -1,0 +1,115 @@
+/**
+ * `text`: one line of text (plan §5), and its presets `personName`, `place`
+ * and `streetAddress`. Whitespace is collapsed and trimmed, the value is NFC.
+ */
+import { badChar, kinds, type CharSet, type Kind } from '../chars.js';
+import { defineType, preset } from '../core/define-type.js';
+import { chars, contains, fits, length } from '../core/stages.js';
+import type { Examples } from '../core/types.js';
+
+export interface TextArgs {
+  readonly min: number;
+  readonly max: number;
+  readonly chars: CharSet;
+  /** A kind of character the value must contain (`'letter'`: City "1" fails). */
+  readonly contains: Kind | undefined;
+}
+
+const FILLERS = ['a', 'x', 'A', '1', 'я'];
+// U+0007 is refused by every named set and survives normalizing
+const BAD = ['\u0007', '<', '@', '_'];
+const NOT_A = { letter: ['.', '-', '1'], digit: ['a', 'x', '.'] } as const;
+
+/**
+ * Examples of a text-like value from its arguments: the shortest and the
+ * longest valid value, one over `max`, one under `min`, a character the set
+ * refuses, a value without the kind `contains` asks for.
+ */
+export function textExamples(args: TextArgs): Examples {
+  const { min, max, chars: set, contains: kind } = args;
+  const allowed = (c: string) => badChar(c, set) === undefined;
+  const fill = FILLERS.find(
+    (c) => allowed(c) && (kind === undefined || kinds[kind].test(c))
+  );
+  if (fill === undefined) return { valid: [], invalid: [] };
+  const bad = BAD.find((c) => !allowed(c));
+  const other = kind === undefined ? undefined : NOT_A[kind].find(allowed);
+  const atLeast = Math.max(min, 1);
+  return {
+    valid: [...new Set([fill.repeat(atLeast), fill.repeat(max)])],
+    invalid: [
+      { value: fill.repeat(max + 1), stage: 'length' },
+      ...(min > 1 ? [{ value: fill.repeat(min - 1), stage: 'length' }] : []),
+      ...(bad === undefined ? [] : [{ value: bad + fill, stage: 'chars' }]),
+      ...(other === undefined ?
+        []
+      : [{ value: other.repeat(atLeast), stage: 'contains' }]),
+    ],
+  };
+}
+
+export const text = /* @__PURE__ */ defineType<TextArgs>({
+  name: 'text',
+  defaults: { min: 1, max: 255, chars: 'text', contains: undefined },
+  normalize: (value) => value.normalize('NFC').replace(/\s+/gu, ' ').trim(),
+  stages: [chars, length, contains],
+  examples: textExamples,
+});
+
+/**
+ * Real values of a preset, kept while they still prove their point with the
+ * field's arguments: valid ones that fit, `length` ones that don't, `contains`
+ * ones that do (`chars` runs first, so those always hold).
+ */
+function samples(
+  valid: readonly string[],
+  invalid: readonly { readonly value: string; readonly stage: string }[]
+) {
+  return (args: TextArgs): Examples => ({
+    valid: valid.filter((value) => fits(args, value)),
+    invalid: invalid.filter(
+      ({ value, stage }) =>
+        stage === 'chars' || (stage === 'length') !== fits(args, value)
+    ),
+  });
+}
+
+/** First, last or full name: letters of any script, `'` `’` `-` `.` and spaces. */
+export const personName = /* @__PURE__ */ preset(text, {
+  name: 'personName',
+  defaults: { max: 100, chars: 'name', contains: 'letter' },
+  examples: /* @__PURE__ */ samples(
+    ['Anne-Marie O’Neil', 'Тихомир', 'José', 'Ng'],
+    [
+      { value: 'Ann3', stage: 'chars' },
+      { value: '<b>', stage: 'chars' },
+    ]
+  ),
+});
+
+/** A city or region: `name` plus digits, `(` `)` `,` `/`, and at least one letter. */
+export const place = /* @__PURE__ */ preset(text, {
+  name: 'place',
+  defaults: { max: 100, chars: 'place', contains: 'letter' },
+  examples: /* @__PURE__ */ samples(
+    ['Frankfurt am Main', 'Sofia 1000', 'Å', 'Saint-Étienne'],
+    [
+      { value: '1', stage: 'contains' },
+      { value: 'Sofia!', stage: 'chars' },
+    ]
+  ),
+});
+
+/** A street address: `place` plus `#` `№` `:` `&` `"`, at least 3 characters and a letter. */
+export const streetAddress = /* @__PURE__ */ preset(text, {
+  name: 'streetAddress',
+  defaults: { min: 3, max: 255, chars: 'address', contains: 'letter' },
+  examples: /* @__PURE__ */ samples(
+    ['ul. Vitosha 1, ap. 4', '221B Baker Street', '1 Rue de l’Église'],
+    [
+      { value: '1', stage: 'length' },
+      { value: '123', stage: 'contains' },
+      { value: 'Main St. <1>', stage: 'chars' },
+    ]
+  ),
+});

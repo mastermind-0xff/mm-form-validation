@@ -1,7 +1,83 @@
 /**
- * @mmutils/form-validation: one field schema for the browser and the server.
- *
- * Scaffold only: it proves the toolchain (rollup, tsc, vitest, eslint). The
- * API lands in phase 1 of the plan (`.claude/plan.md`).
+ * @mmutils/form-validation: one field schema for the browser and the server
+ * (plan `.claude/plan.md`). The core: types, fields, forms, character sets and
+ * the built-in field types. The browser binding is `./dom`, the test helpers
+ * are `./testing`.
  */
-export const packageName = '@mmutils/form-validation';
+export {
+  defineType,
+  preset,
+  readScalar,
+  readString,
+  type PresetOptions,
+} from './core/define-type.js';
+export {
+  defineForm,
+  type FieldError,
+  type Form,
+  type FormFields,
+  type ParseResult,
+  type ValueOf,
+  type ValuesOf,
+} from './core/define-form.js';
+export {
+  chars,
+  charsStage,
+  contains,
+  length,
+  pattern,
+  plural,
+} from './core/stages.js';
+export type {
+  CommonOptions,
+  Details,
+  Dynamic,
+  DynamicArgs,
+  Examples,
+  Field,
+  FieldOptions,
+  FieldResult,
+  FieldType,
+  FormValues,
+  Invalid,
+  Message,
+  Messages,
+  Problem,
+  Stage,
+  TypeSpec,
+} from './core/types.js';
+export {
+  badChar,
+  charSets,
+  codePoints,
+  kinds,
+  type CharSet,
+  type Kind,
+} from './chars.js';
+
+export { checkbox } from './types/checkbox.js';
+export { confirm, type ConfirmArgs } from './types/confirm.js';
+export { email, type EmailArgs } from './types/email.js';
+export { multiline, type MultilineArgs } from './types/multiline.js';
+export { password, type PasswordArgs } from './types/password.js';
+export {
+  choice,
+  optionLabel,
+  optionValue,
+  select,
+  type Option,
+  type SelectArgs,
+} from './types/select.js';
+export {
+  personName,
+  place,
+  streetAddress,
+  text,
+  type TextArgs,
+} from './types/text.js';
+export {
+  EU_VAT_FORMATS,
+  vatNumber,
+  vatPrefix,
+  type VatNumberArgs,
+} from './types/vat-number.js';

@@ -1,0 +1,257 @@
+/* The example page itself: layout, toolbar, cards. Not part of the field design. */
+
+:root {
+  --page-bg: #f6f7f9;
+  --card-bg: #fff;
+  --card-line: #e3e6ea;
+  --muted: #5f6672;
+  --accent: #1f2328;
+  color-scheme: light;
+}
+
+:root[data-scheme='dark'] {
+  --page-bg: #0f1115;
+  --card-bg: #171a20;
+  --card-line: #2a2f38;
+  --muted: #9aa1ad;
+  --accent: #e6e8eb;
+  --fv-text: #e6e8eb;
+  --fv-bg: #1d2129;
+  --fv-fill: #232833;
+  --fv-line: #3c4350;
+  --fv-line-strong: #9aa1ad;
+  --fv-hint: #9aa1ad;
+  --fv-invalid: #ff6369;
+  --fv-invalid-text: #ff8a8f;
+  --fv-required: #ff8a8f;
+  --fv-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%239aa1ad' stroke-width='1.6'/%3E%3C/svg%3E");
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page-bg);
+  color: var(--accent);
+  font:
+    16px/1.5 system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+header,
+main {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+header h1 {
+  margin: 28px 0 4px;
+  font-size: 1.5rem;
+}
+
+header p {
+  max-width: 72ch;
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+
+code {
+  font-size: 0.9em;
+}
+
+.file-warning {
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #fff3cd;
+  color: #5c4400;
+}
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+  align-items: start;
+  margin-bottom: 20px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--card-line);
+  background: color-mix(in srgb, var(--page-bg) 92%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.toolbar fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.toolbar legend {
+  width: 100%;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.segmented label {
+  padding: 4px 10px;
+  border: 1px solid var(--card-line);
+  border-radius: 999px;
+  background: var(--card-bg);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.segmented input {
+  position: absolute;
+  opacity: 0;
+}
+
+.segmented label:has(:checked) {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--page-bg);
+}
+
+.segmented label:has(:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tweaks summary {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.tweaks[open] {
+  flex-basis: 100%;
+}
+
+.tweaks .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px 24px;
+  margin-top: 10px;
+  font-size: 0.8125rem;
+}
+
+.tweaks label {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  align-items: center;
+}
+
+.tweaks input[type='range'] {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.tweaks output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tweaks button {
+  justify-self: start;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 20px;
+  align-items: start;
+  padding-bottom: 60px;
+}
+
+.card {
+  padding: 22px 24px 18px;
+  border: 1px solid var(--card-line);
+  border-radius: 12px;
+  background: var(--card-bg);
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.card .try {
+  margin: 4px 0 18px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.card form {
+  display: grid;
+  gap: 4px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 16px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.actions button {
+  padding: 9px 16px;
+  border: 1px solid var(--card-line);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.actions button[type='submit'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--card-bg);
+}
+
+.server {
+  display: block;
+  min-height: 1.5em;
+  margin-top: 10px;
+  color: var(--muted);
+  font:
+    0.75rem/1.5 ui-monospace,
+    'Cascadia Mono',
+    Consolas,
+    monospace;
+  white-space: pre-wrap;
+}
+
+.server[data-ok='true'] {
+  color: #12805c;
+}
+
+.server[data-ok='false'] {
+  color: var(--fv-invalid-text);
+}

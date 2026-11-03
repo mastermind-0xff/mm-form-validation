@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en" data-look="edge">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@mmutils/form-validation: examples</title>
+    <link rel="stylesheet" href="css/fields.css" />
+    <link rel="stylesheet" href="css/looks.css" />
+    <link rel="stylesheet" href="css/demo.css" />
+    <script>
+      // before the first paint: the look and scheme chosen last time
+      try {
+        const look = localStorage.getItem('fv-demo-look');
+        const scheme = localStorage.getItem('fv-demo-scheme');
+        if (look) document.documentElement.dataset.look = look;
+        if (scheme) document.documentElement.dataset.scheme = scheme;
+      } catch {}
+    </script>
+    <script type="module" src="page.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>Form validation: examples</h1>
+      <p>
+        Four forms checked while you type, with the schemas in
+        <code>examples/forms.js</code>. The server (<code>npm run examples</code
+        >) checks the same schemas: <em>Send as is</em> skips the browser's
+        checks, so you see the server's answer in the same message lines.
+      </p>
+      <p class="file-warning" id="file-warning" hidden>
+        Opened from disk: browsers don't run module scripts from
+        <code>file://</code>. Run <code>npm run examples</code> and open
+        <a href="http://localhost:5178/examples/"
+          >http://localhost:5178/examples/</a
+        >.
+      </p>
+      <script>
+        if (location.protocol === 'file:')
+          document.getElementById('file-warning').hidden = false;
+      </script>
+    </header>
+
+    <div class="toolbar">
+      <fieldset class="segmented" id="look">
+        <legend>Look</legend>
+        <label><input type="radio" name="look" value="edge" /> Edge</label>
+        <label
+          ><input type="radio" name="look" value="underline" /> Underline</label
+        >
+        <label
+          ><input type="radio" name="look" value="outline" /> Outline</label
+        >
+        <label><input type="radio" name="look" value="icon" /> Icon</label>
+        <label><input type="radio" name="look" value="filled" /> Filled</label>
+      </fieldset>
+      <fieldset class="segmented" id="timing">
+        <legend>Red for unfinished values</legend>
+        <label
+          ><input type="radio" name="timing" value="leave" /> On leaving</label
+        >
+        <label
+          ><input type="radio" name="timing" value="pause" /> After a
+          pause</label
+        >
+        <label
+          ><input type="radio" name="timing" value="input" /> While
+          typing</label
+        >
+      </fieldset>
+      <fieldset class="segmented" id="scheme">
+        <legend>Scheme</legend>
+        <label><input type="radio" name="scheme" value="light" /> Light</label>
+        <label><input type="radio" name="scheme" value="dark" /> Dark</label>
+      </fieldset>
+      <details class="tweaks">
+        <summary>Tokens</summary>
+        <div class="grid">
+          <label
+            >Padding left/right <output data-for="--fv-pad-x"></output>
+            <input
+              type="range"
+              data-token="--fv-pad-x"
+              data-unit="px"
+              min="6"
+              max="32"
+              value="16"
+          /></label>
+          <label
+            >Padding top/bottom <output data-for="--fv-pad-y"></output>
+            <input
+              type="range"
+              data-token="--fv-pad-y"
+              data-unit="px"
+              min="4"
+              max="20"
+              value="11"
+          /></label>
+          <label
+            >Edge bar <output data-for="--fv-edge"></output>
+            <input
+              type="range"
+              data-token="--fv-edge"
+              data-unit="px"
+              min="1"
+              max="16"
+              value="8"
+          /></label>
+          <label
+            >Corner radius <output data-for="--fv-radius"></output>
+            <input
+              type="range"
+              data-token="--fv-radius"
+              data-unit="px"
+              min="0"
+              max="16"
+              value="6"
+          /></label>
+          <label
+            >Speed <output data-for="--fv-speed"></output>
+            <input
+              type="range"
+              data-token="--fv-speed"
+              data-unit="ms"
+              min="0"
+              max="1200"
+              step="50"
+              value="300"
+          /></label>
+          <label
+            >Valid <input type="color" data-token="--fv-valid" value="#2ddb93"
+          /></label>
+          <label
+            >Invalid
+            <input type="color" data-token="--fv-invalid" value="#e5484d"
+          /></label>
+          <button type="button" id="reset-tokens">Reset the tokens</button>
+        </div>
+      </details>
+    </div>
+
+    <main class="cards">
+      <section class="card">
+        <h2>Sign in</h2>
+        <p class="try">
+          motionbites' sign-in, the reference for the look. Tab through both
+          fields without typing; type an e-mail slowly.
+        </p>
+        <form data-schema="signIn">
+          <div class="fv-field" data-field="email">
+            <label for="signin-email">E-mail</label>
+            <input
+              class="fv-box"
+              id="signin-email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              spellcheck="false"
+            />
+            <p class="fv-message" data-message-for="email"></p>
+          </div>
+          <div class="fv-field" data-field="password">
+            <label for="signin-password">Password</label>
+            <input
+              class="fv-box"
+              id="signin-password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+            />
+            <p class="fv-message" data-message-for="password"></p>
+          </div>
+          <div class="actions">
+            <button type="submit">Sign in</button>
+            <button type="button" data-action="raw">Send as is</button>
+            <button type="button" data-action="clear">Clear</button>
+          </div>
+          <output class="server"></output>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Register</h2>
+        <p class="try">
+          Retype the password: the start of it is a hint, a wrong character is
+          red at once. The asterisks come from the schema.
+        </p>
+        <form data-schema="register">
+          <div class="fv-field" data-field="email">
+            <label for="register-email">E-mail</label>
+            <input
+              class="fv-box"
+              id="register-email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              spellcheck="false"
+            />
+            <p class="fv-message" data-message-for="email"></p>
+          </div>
+          <div class="fv-field" data-field="password">
+            <label for="register-password">Password</label>
+            <input
+              class="fv-box"
+              id="register-password"
+              name="password"
+              type="password"
+              autocomplete="new-password"
+            />
+            <p class="fv-message" data-message-for="password"></p>
+          </div>
+          <div class="fv-field" data-field="passwordConfirm">
+            <label for="register-confirm">Password again</label>
+            <input
+              class="fv-box"
+              id="register-confirm"
+              name="passwordConfirm"
+              type="password"
+              autocomplete="new-password"
+            />
+            <p class="fv-message" data-message-for="passwordConfirm"></p>
+          </div>
+          <div class="fv-field" data-field="newsletter">
+            <label class="fv-option fv-box"
+              ><input type="checkbox" name="newsletter" /> Send me the
+              newsletter</label
+            >
+            <p class="fv-message" data-message-for="newsletter"></p>
+          </div>
+          <div class="fv-field" data-field="consent">
+            <label class="fv-option fv-box"
+              ><input type="checkbox" name="consent" /> I accept the Terms of
+              Use and the Privacy Policy</label
+            >
+            <p class="fv-message" data-message-for="consent"></p>
+          </div>
+          <div class="actions">
+            <button type="submit">Create the account</button>
+            <button type="button" data-action="raw">Send as is</button>
+            <button type="button" data-action="clear">Clear</button>
+          </div>
+          <output class="server"></output>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Billing</h2>
+        <p class="try">
+          Choose <em>A company</em>: its fields appear and City and Address
+          become required. Type a VAT number for Bulgaria, then change the
+          country. City "1" and Address "1" no longer pass.
+        </p>
+        <form data-schema="billing">
+          <fieldset class="fv-field" data-field="isCompany">
+            <legend>Billing as</legend>
+            <div class="fv-options fv-box">
+              <label class="fv-option"
+                ><input type="radio" name="isCompany" value="0" /> A private
+                person</label
+              >
+              <label class="fv-option"
+                ><input type="radio" name="isCompany" value="1" /> A
+                company</label
+              >
+            </div>
+            <p class="fv-message" data-message-for="isCompany"></p>
+          </fieldset>
+          <div class="fv-field" data-field="country">
+            <label for="billing-country">Country</label>
+            <select
+              class="fv-box"
+              id="billing-country"
+              name="country"
+              data-options="countries"
+              autocomplete="country"
+            >
+              <option value="">Choose your country…</option>
+            </select>
+            <p class="fv-message" data-message-for="country"></p>
+          </div>
+          <div class="row">
+            <div class="fv-field" data-field="firstName">
+              <label for="billing-first">First name</label>
+              <input
+                class="fv-box"
+                id="billing-first"
+                name="firstName"
+                autocomplete="given-name"
+              />
+              <p class="fv-message" data-message-for="firstName"></p>
+            </div>
+            <div class="fv-field" data-field="lastName">
+              <label for="billing-last">Last name</label>
+              <input
+                class="fv-box"
+                id="billing-last"
+                name="lastName"
+                autocomplete="family-name"
+              />
+              <p class="fv-message" data-message-for="lastName"></p>
+            </div>
+          </div>
+          <div class="fv-field" data-field="companyName">
+            <label for="billing-company">Company name</label>
+            <input
+              class="fv-box"
+              id="billing-company"
+              name="companyName"
+              autocomplete="organization"
+            />
+            <p class="fv-message" data-message-for="companyName"></p>
+          </div>
+          <div class="row">
+            <div class="fv-field" data-field="entityNumber">
+              <label for="billing-entity">Registration number</label>
+              <input class="fv-box" id="billing-entity" name="entityNumber" />
+              <p class="fv-message" data-message-for="entityNumber"></p>
+            </div>
+            <div class="fv-field" data-field="vatNumber">
+              <label for="billing-vat">VAT number</label>
+              <input
+                class="fv-box"
+                id="billing-vat"
+                name="vatNumber"
+                spellcheck="false"
+                autocapitalize="characters"
+              />
+              <p class="fv-message" data-message-for="vatNumber"></p>
+            </div>
+          </div>
+          <div class="fv-field" data-field="city">
+            <label for="billing-city">City</label>
+            <input
+              class="fv-box"
+              id="billing-city"
+              name="city"
+              autocomplete="address-level2"
+            />
+            <p class="fv-message" data-message-for="city"></p>
+          </div>
+          <div class="fv-field" data-field="address1">
+            <label for="billing-address1">Address</label>
+            <input
+              class="fv-box"
+              id="billing-address1"
+              name="address1"
+              autocomplete="address-line1"
+            />
+            <p class="fv-message" data-message-for="address1"></p>
+          </div>
+          <div class="fv-field" data-field="address2">
+            <label for="billing-address2">Address, line 2</label>
+            <input
+              class="fv-box"
+              id="billing-address2"
+              name="address2"
+              autocomplete="address-line2"
+            />
+            <p class="fv-message" data-message-for="address2"></p>
+          </div>
+          <div class="actions">
+            <button type="submit">Save</button>
+            <button type="button" data-action="raw">Send as is</button>
+            <button type="button" data-action="clear">Clear</button>
+          </div>
+          <output class="server"></output>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Contact</h2>
+        <p class="try">
+          Choose <em>An order</em> for the order number (optional: empty is
+          fine, but what you type is checked). The message counts characters and
+          lines.
+        </p>
+        <form data-schema="contact">
+          <div class="fv-field" data-field="name">
+            <label for="contact-name">Your name</label>
+            <input
+              class="fv-box"
+              id="contact-name"
+              name="name"
+              autocomplete="name"
+            />
+            <p class="fv-message" data-message-for="name"></p>
+          </div>
+          <div class="fv-field" data-field="email">
+            <label for="contact-email">E-mail</label>
+            <input
+              class="fv-box"
+              id="contact-email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              spellcheck="false"
+            />
+            <p class="fv-message" data-message-for="email"></p>
+          </div>
+          <div class="fv-field" data-field="topic">
+            <label for="contact-topic">About</label>
+            <select class="fv-box" id="contact-topic" name="topic">
+              <option value="">Choose a topic…</option>
+              <option value="order">An order</option>
+              <option value="wholesale">Wholesale</option>
+              <option value="other">Something else</option>
+            </select>
+            <p class="fv-message" data-message-for="topic"></p>
+          </div>
+          <div class="fv-field" data-field="orderNumber">
+            <label for="contact-order">Order number</label>
+            <input
+              class="fv-box"
+              id="contact-order"
+              name="orderNumber"
+              spellcheck="false"
+            />
+            <p class="fv-message" data-message-for="orderNumber"></p>
+          </div>
+          <div class="fv-field" data-field="message">
+            <label for="contact-message">Message</label>
+            <textarea
+              class="fv-box"
+              id="contact-message"
+              name="message"
+              rows="5"
+            ></textarea>
+            <p class="fv-message" data-message-for="message"></p>
+          </div>
+          <div class="actions">
+            <button type="submit">Send</button>
+            <button type="button" data-action="raw">Send as is</button>
+            <button type="button" data-action="clear">Clear</button>
+          </div>
+          <output class="server"></output>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

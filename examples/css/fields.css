@@ -1,0 +1,190 @@
+/*
+ * Fields: structure and design tokens, the same for every look.
+ *
+ * The binding sets attributes only; this file and looks.css style them:
+ *   [data-field]                     the field's wrapper
+ *   [data-state="valid" | "invalid"] on the wrapper (none: neutral)
+ *   [data-message="hint" | "error"]  on the wrapper (none: no message)
+ *   :required                        on the controls, from the schema
+ *   .fv-box                          the element that shows the state (an
+ *                                    input, a select, a textarea, a group)
+ *   .fv-message                      the message line under the box
+ *
+ * A project changes the look by setting the --fv-* tokens (colors, padding,
+ * speed) or by writing its own look (looks.css has five).
+ */
+
+:root {
+  --fv-font: inherit;
+  --fv-text: #1f2328;
+  --fv-bg: #fff;
+  --fv-fill: #f1f3f5;
+  --fv-line: #c4cad3;
+  --fv-line-strong: #6b7280;
+  --fv-hint: #5f6672;
+  --fv-valid: #2ddb93;
+  --fv-invalid: #e5484d;
+  --fv-invalid-text: #c62a2f;
+  --fv-required: #c62a2f;
+
+  /* the same spacing for every box: inputs, drop-downs, text areas */
+  --fv-pad-y: 11px;
+  --fv-pad-x: 16px;
+  --fv-border: 1px;
+  /* the state bar of the edge look: half of the left padding */
+  --fv-edge: 8px;
+  --fv-radius: 6px;
+  --fv-gap: 6px;
+
+  --fv-speed: 300ms;
+  --fv-ease: cubic-bezier(0.7, 0, 0.3, 1);
+
+  --fv-label-size: 0.875rem;
+  --fv-message-size: 0.8125rem;
+  --fv-message-line: 1.45;
+
+  --fv-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%236b7280' stroke-width='1.6'/%3E%3C/svg%3E");
+  --fv-icon-valid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3.2 3.2L13 5' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --fv-icon-invalid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='none' stroke='%23000' stroke-width='1.6'/%3E%3Cpath d='M8 4.4v4.6' stroke='%23000' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='8' cy='11.7' r='1.1'/%3E%3C/svg%3E");
+}
+
+/* the state color every look uses */
+[data-field] {
+  --fv-state: var(--fv-line);
+}
+[data-field][data-state='valid'] {
+  --fv-state: var(--fv-valid);
+}
+[data-field][data-state='invalid'] {
+  --fv-state: var(--fv-invalid);
+}
+
+.fv-field {
+  display: grid;
+  gap: var(--fv-gap);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-family: var(--fv-font);
+  color: var(--fv-text);
+}
+
+/* inactive fields (`when`): the binding sets `hidden`, which `display` above
+   would override */
+.fv-field[hidden] {
+  display: none;
+}
+
+.fv-field > label:not(.fv-option),
+.fv-field > legend {
+  padding: 0;
+  font-size: var(--fv-label-size);
+  font-weight: 600;
+}
+
+/* the asterisk follows the schema: the binding sets `required` */
+.fv-field:has(:required) > :is(label, legend)::after {
+  content: ' *';
+  color: var(--fv-required);
+}
+
+.fv-box {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: var(--fv-pad-y) var(--fv-pad-x);
+  border: var(--fv-border) solid var(--fv-line);
+  border-radius: var(--fv-radius);
+  background-color: var(--fv-bg);
+  color: inherit;
+  font: inherit;
+  line-height: 1.4;
+  transition:
+    border-color var(--fv-speed) var(--fv-ease),
+    border-width var(--fv-speed) var(--fv-ease),
+    padding var(--fv-speed) var(--fv-ease),
+    box-shadow var(--fv-speed) var(--fv-ease),
+    background-color var(--fv-speed) var(--fv-ease);
+}
+
+.fv-box:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--fv-line-strong) 45%, transparent);
+  outline-offset: 2px;
+}
+
+select.fv-box {
+  appearance: none;
+  padding-right: calc(var(--fv-pad-x) * 2 + 12px);
+  background-image: var(--fv-arrow);
+  background-repeat: no-repeat;
+  background-position: right var(--fv-pad-x) center;
+  background-size: 12px 8px;
+}
+
+textarea.fv-box {
+  min-height: 7.5em;
+  resize: vertical;
+}
+
+/* radio groups and single checkboxes: the options sit in a box too */
+.fv-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.fv-option {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+.fv-option input {
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0;
+  accent-color: var(--fv-line-strong);
+}
+
+/* one line of text, its height reserved: no layout shift */
+.fv-message {
+  min-height: calc(var(--fv-message-size) * var(--fv-message-line));
+  margin: 0;
+  color: var(--fv-hint);
+  font-size: var(--fv-message-size);
+  line-height: var(--fv-message-line);
+}
+
+[data-message='hint'] > .fv-message {
+  animation: fv-hint var(--fv-speed) var(--fv-ease);
+}
+
+[data-message='error'] > .fv-message {
+  color: var(--fv-invalid-text);
+  animation: fv-error var(--fv-speed) var(--fv-ease);
+}
+
+/* two names, so switching from hint to error plays it again */
+@keyframes fv-hint {
+  from {
+    opacity: 0;
+    translate: 0 -3px;
+  }
+}
+@keyframes fv-error {
+  from {
+    opacity: 0;
+    translate: 0 -3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fv-box,
+  .fv-message {
+    transition: none;
+    animation: none;
+  }
+}

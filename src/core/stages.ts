@@ -1,0 +1,109 @@
+/**
+ * The shared stages (plan §4.4). A type lists the ones it needs, in order,
+ * and adds its own `rule` or `pattern` stages for what is special about it.
+ */
+import {
+  badChar,
+  codePoints,
+  kinds,
+  type CharSet,
+  type Kind,
+} from '../chars.js';
+import type { Details, Problem, Stage } from './types.js';
+
+/** "1 character", "3 characters" */
+export function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? '' : 's'}`;
+}
+
+/** How a character reads in a message: "<", or U+0009 for one you can't see. */
+function shown(char: string): string {
+  return /[\p{C}\p{Z}]/u.test(char) ?
+      `U+${(char.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, '0')}`
+    : `"${char}"`;
+}
+
+export function charsMessage(details: Details): string {
+  return details['char'] === ' ' ?
+      'Spaces are not allowed.'
+    : `The character ${String(details['shown'])} is not allowed.`;
+}
+
+/** Fails on the first character outside the set the arguments name. */
+export function charsStage<A>(set: (args: A) => CharSet): Stage<A> {
+  return {
+    name: 'chars',
+    check: (value, args) => {
+      const char = badChar(value, set(args));
+      if (char === undefined) return undefined;
+      const details = { char, shown: shown(char) };
+      return { message: charsMessage(details), details };
+    },
+  };
+}
+
+/** `chars` from the `chars` argument (`text`, `multiline` and their presets). */
+export const chars: Stage<{ readonly chars: CharSet }> = charsStage(
+  (args) => args.chars
+);
+
+export function lengthMessage(details: Details): string {
+  const { min = 0, max = 0, count = 0 } = details;
+  return Number(count) < Number(min) ?
+      `At least ${plural(Number(min), 'character')}.`
+    : `At most ${plural(Number(max), 'character')} (now ${count}).`;
+}
+
+/** The value has `min` to `max` code points (examples that must fit the arguments). */
+export function fits(
+  args: { readonly min: number; readonly max: number },
+  value: string
+): boolean {
+  const n = codePoints(value);
+  return n >= args.min && n <= args.max;
+}
+
+/** `min` to `max` code points. Too short can still be fixed by typing; too long can't. */
+export const length: Stage<{ readonly min: number; readonly max: number }> = {
+  name: 'length',
+  check: (value, { min, max }) => {
+    const count = codePoints(value);
+    if (count >= min && count <= max) return undefined;
+    const details = { min, max, count };
+    return {
+      message: lengthMessage(details),
+      details,
+      incomplete: count < min,
+    };
+  },
+};
+
+/** Needs one character of a kind: City "1" fails, "Å" passes (plan §4.6). */
+export const contains: Stage<{ readonly contains: Kind | undefined }> = {
+  name: 'contains',
+  check: (value, args) => {
+    const kind = args.contains;
+    if (kind === undefined || kinds[kind].test(value)) return undefined;
+    return {
+      message: `Use at least one ${kind}.`,
+      details: { kind },
+      incomplete: true,
+    };
+  },
+};
+
+/** The whole value must have a shape; the message says which. */
+export function pattern<A>(
+  re: RegExp,
+  message: string | ((value: string, args: A) => Problem)
+): Stage<A> {
+  return {
+    name: 'pattern',
+    check: (value, args) => {
+      if (re.test(value)) return undefined;
+      return typeof message === 'string' ?
+          { message, incomplete: true }
+        : message(value, args);
+    },
+  };
+}

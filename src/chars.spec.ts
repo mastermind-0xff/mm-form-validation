@@ -1,0 +1,49 @@
+import { describe, expect, it } from 'vitest';
+import { badChar, charSets, codePoints, kinds } from './chars.js';
+
+describe('charSets', () => {
+  it('compile with the v flag too (they may end up in a pattern attribute)', () => {
+    for (const re of [...Object.values(charSets), ...Object.values(kinds)])
+      expect(() => new RegExp(re.source, 'v')).not.toThrow();
+  });
+
+  it.each([
+    ['text', 'Ae Sweets Ltd. Café №5 <b>', undefined],
+    ['text', 'tab\there', '\t'],
+    ['text', 'bidi‮override', '‮'],
+    ['multiline', 'two\nlines\tand a tab', undefined],
+    ['multiline', 'bell\u0007', '\u0007'],
+    ['name', 'Anne-Marie O’Neil', undefined],
+    ['name', 'Тихомир Трифонов', undefined],
+    ['name', 'José Ñúñez', undefined],
+    ['name', 'Ann3', '3'],
+    ['place', 'Frankfurt (Oder), 15230/1', undefined],
+    ['place', 'Sofia!', '!'],
+    ['address', 'ul. "Vitosha" № 1, ap. 4 & 5: #2', undefined],
+    ['address', 'Main St. <1>', '<'],
+    ['digits', '0123456789', undefined],
+    ['digits', '12a', 'a'],
+    ['alnum', 'AZaz09', undefined],
+    ['alnum', 'A-1', '-'],
+    ['code', 'SUMMER_24-x', undefined],
+    ['code', 'NO SPACE', ' '],
+  ] as const)('%s: %j → %j', (set, value, bad) => {
+    expect(badChar(value, set)).toBe(bad);
+  });
+
+  it('takes a custom regex, also with the g flag', () => {
+    const vowels = /[aeiou]/gu;
+    expect(badChar('xyz', vowels)).toBeUndefined();
+    expect(badChar('xaz', vowels)).toBe('a');
+    expect(badChar('xaz', vowels)).toBe('a');
+  });
+});
+
+describe('codePoints', () => {
+  it('counts an emoji once and combining marks apart', () => {
+    expect(codePoints('abc')).toBe(3);
+    expect(codePoints('😀')).toBe(1);
+    expect('😀'.length).toBe(2);
+    expect(codePoints('é')).toBe(2);
+  });
+});
