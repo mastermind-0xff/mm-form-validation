@@ -328,7 +328,7 @@ describe('bindForm: submit, server errors, reset, destroy', () => {
     );
     expect(bound.values()).toMatchObject({
       email: 'Ana@Example.com',
-      terms: true,
+      terms: 'on',
     });
   });
 
@@ -354,6 +354,44 @@ describe('bindForm: submit, server errors, reset, destroy', () => {
     expect(box('email').dataset['state']).toBe('valid');
   });
 
+  it('a change anywhere clears the server’s messages: the value they judged may be fine now', () => {
+    const bound = bind();
+    fill();
+    bound.showErrors([
+      { field: 'email', stage: 'rule', message: 'Already registered.' },
+      { field: 'name', stage: 'rule', message: 'Not this name.' },
+    ]);
+    expect(bound.validate()).toBe(false);
+    type('city', 'Sofia');
+    expect(line('email')).toBe('');
+    expect(line('name')).toBe('');
+    expect(box('email').dataset['state']).toBe('valid');
+    expect(bound.validate()).toBe(true);
+  });
+
+  it('showErrors shows nothing for an answer without errors', () => {
+    const bound = bind();
+    fill();
+    const bad: unknown[] = [undefined, null, 42, 'x', { errors: [] }];
+    for (const answer of bad)
+      expect(() => {
+        bound.showErrors(answer as never);
+      }).not.toThrow();
+    for (const entry of [
+      null,
+      5,
+      'x',
+      {},
+      { field: 'email' },
+      { field: 'email', message: 7 },
+    ])
+      expect(() => {
+        bound.showErrors([entry] as never);
+      }).not.toThrow();
+    expect(line('email')).toBe('');
+    expect(bound.validate()).toBe(true);
+  });
+
   it('reset goes back to neutral; destroy stops listening', () => {
     const bound = bind();
     type('name', 'x'.repeat(11));
@@ -373,5 +411,186 @@ describe('bindForm: submit, server errors, reset, destroy', () => {
       .querySelector('button')!
       .dispatchEvent(new Event('input', { bubbles: true }));
     expect(box('name').hasAttribute('data-state')).toBe(false);
+  });
+
+  it('a required field without a control blocks the submit and says so', () => {
+    const report = vi.spyOn(console, 'error').mockImplementation(() => {
+      // kept out of the test output
+    });
+    const onSubmit = vi.fn();
+    const bound = bindForm(form, defineForm({ name: text(), extra: text() }), {
+      onSubmit,
+    });
+    control('name').value = 'Ana';
+    const event = new Event('submit', { cancelable: true });
+    form.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(report).toHaveBeenCalledOnce();
+    expect(report.mock.calls[0]).toEqual([
+      'bindForm: no control in the form for these fields:',
+      ['extra'],
+    ]);
+    expect(bound.validate()).toBe(false);
+    report.mockRestore();
+  });
+
+  it('an optional field without a control is fine', () => {
+    const report = vi.spyOn(console, 'error');
+    const onSubmit = vi.fn();
+    bindForm(
+      form,
+      defineForm({ name: text(), extra: text({ required: false }) }),
+      { onSubmit }
+    );
+    control('name').value = 'Ana';
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    expect(onSubmit).toHaveBeenCalledOnce();
+    expect(report).not.toHaveBeenCalled();
+    report.mockRestore();
+  });
+});
+
+describe('bindForm: reads what a native submit sends', () => {
+  /** The form as markup, the schema, and what `validate` and the server say. */
+  function outcome(markup: string, fields: Parameters<typeof defineForm>[0]) {
+    document.body.innerHTML = `<form>${markup}</form>`;
+    form = document.querySelector('form')!;
+    const shape = defineForm(fields);
+    const bound = bindForm(form, shape);
+    const sent = Object.fromEntries(new FormData(form));
+    return {
+      bound,
+      valid: bound.validate(),
+      server: shape.parse(sent),
+    };
+  }
+
+  it.each([
+    [
+      'a hidden value and a ticked checkbox',
+      '<input type="hidden" name="c" value="0"><input type="checkbox" name="c" value="1" checked>',
+      true,
+    ],
+    [
+      'a hidden value and an unticked checkbox',
+      '<input type="hidden" name="c" value="0"><input type="checkbox" name="c" value="1">',
+      false,
+    ],
+    [
+      'a ticked checkbox with a value the type doesn’t read as ticked',
+      '<input type="checkbox" name="c" value="yes" checked>',
+      false,
+    ],
+    [
+      'two checkboxes of a name, none ticked',
+      '<input type="checkbox" name="c"><input type="checkbox" name="c">',
+      false,
+    ],
+    [
+      'two checkboxes of a name, one ticked',
+      '<input type="checkbox" name="c" checked><input type="checkbox" name="c">',
+      true,
+    ],
+    ['one ticked checkbox', '<input type="checkbox" name="c" checked>', true],
+    ['one unticked checkbox', '<input type="checkbox" name="c">', false],
+  ])('checkbox: %s', (_name, markup, expected) => {
+    const { valid, server } = outcome(markup, { c: checkbox() });
+    expect(valid).toBe(expected);
+    expect(server.ok).toBe(expected);
+  });
+
+  it.each([
+    ['disabled and filled', '<input name="t" value="Ana" disabled>', false],
+    ['disabled and empty', '<input name="t" disabled>', false],
+    [
+      'two of a name, the second wrong',
+      '<input name="t" value="Ana"><input name="t" value="a&lt;b">',
+      false,
+    ],
+    [
+      'two of a name, the first wrong',
+      '<input name="t" value="a&lt;b"><input name="t" value="Ana">',
+      true,
+    ],
+    ['a text area', '<textarea name="t">Ana</textarea>', true],
+    [
+      'a drop-down',
+      '<select name="t"><option value="">-</option><option selected>Ana</option></select>',
+      true,
+    ],
+    [
+      'radio buttons, none checked',
+      '<input type="radio" name="t" value="a"><input type="radio" name="t" value="b">',
+      false,
+    ],
+    [
+      'radio buttons, one checked',
+      '<input type="radio" name="t" value="a"><input type="radio" name="t" value="b" checked>',
+      true,
+    ],
+  ])('a required text: %s', (_name, markup, expected) => {
+    const { valid, server } = outcome(markup, {
+      t: text({ chars: 'name' }),
+    });
+    expect(valid).toBe(expected);
+    expect(server.ok).toBe(expected);
+  });
+
+  it('a disabled optional field is empty, and stays out of the values', () => {
+    const { valid, server, bound } = outcome(
+      '<input name="a" value="Ana"><input name="b" value="x" disabled>',
+      { a: text(), b: text({ required: false }) }
+    );
+    expect(valid).toBe(true);
+    expect(server).toEqual({ ok: true, values: { a: 'Ana', b: '' } });
+    expect(bound.values()).toEqual({ a: 'Ana' });
+  });
+
+  it('focuses the visible control of a field, not its hidden value', () => {
+    const { bound } = outcome(
+      '<input type="hidden" name="c" value="0"><input type="checkbox" name="c" value="1">',
+      { c: checkbox() }
+    );
+    bound.validate();
+    expect(document.activeElement).toBe(
+      form.querySelector('[type="checkbox"]')
+    );
+  });
+});
+
+describe('bindForm: loaded after the user started', () => {
+  it('picks up the field that already has focus', () => {
+    const input = control('password');
+    input.focus();
+    expect(document.activeElement).toBe(input);
+    bind();
+    // a focused, empty field shows what it expects, as if focus came after binding
+    expect(line('password')).toBe('At least 8 characters.');
+    expect(box('password').dataset['message']).toBe('hint');
+  });
+
+  it('shows the state of what was typed in it', () => {
+    const input = control('name');
+    input.focus();
+    input.value = 'Ana';
+    bind();
+    expect(box('name').dataset['state']).toBe('valid');
+  });
+
+  it('leaves the other fields neutral, also when they hold a value', () => {
+    control('email').value = 'ana@exa';
+    control('name').focus();
+    bind();
+    expect(box('email').hasAttribute('data-state')).toBe(false);
+    expect(line('email')).toBe('');
+  });
+
+  it('ignores focus outside the form', () => {
+    document.body.insertAdjacentHTML('beforeend', '<input id="outside">');
+    document.querySelector<HTMLInputElement>('#outside')!.focus();
+    bind();
+    for (const name of schema.names)
+      expect(box(name).hasAttribute('data-message')).toBe(false);
   });
 });

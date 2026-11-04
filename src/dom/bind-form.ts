@@ -46,15 +46,31 @@ export interface BindOptions<T> {
 }
 
 export interface BoundForm {
-  /** Checks every field, shows every problem, focuses the first; `true` when valid. */
+  /**
+   * Checks every field, shows every problem, focuses the first; `true` when
+   * the server will accept the form as well. A required field the page has no
+   * control for fails here, and is reported with `console.error`.
+   */
   validate(): boolean;
-  /** The raw values of the controls by field name (strings; checkboxes: booleans). */
+  /**
+   * The schema's fields as a native submit sends them, by name: strings, a
+   * ticked checkbox's `value` (`on` without one). What isn't sent is left out:
+   * disabled controls, unticked boxes. The last control of a name wins.
+   */
   values(): Record<string, unknown>;
-  /** Shows errors found elsewhere (the server's) until the field changes. */
-  showErrors(errors: readonly FieldError[]): void;
+  /**
+   * Shows errors found elsewhere (the server's) until any field changes: a
+   * change elsewhere may fix them (the country a VAT number is checked for),
+   * and the checks here show again what is still wrong. Anything but an array
+   * (an answer without `errors`) shows nothing.
+   */
+  showErrors(errors: readonly FieldError[] | undefined): void;
   /** Back to neutral: no states, no messages. */
   reset(): void;
-  /** Removes the listeners. */
+  /**
+   * Removes the listeners and timers. The attributes and message lines stay as
+   * they are, and `validate` and `values` keep working.
+   */
   destroy(): void;
 }
 
@@ -69,7 +85,7 @@ interface Slot {
   touched: boolean;
   /** Left, changed, submitted or past the pause: unfinished values are errors. */
   shown: boolean;
-  /** A message from `showErrors`, until the value changes. */
+  /** A message from `showErrors`, until any field changes. */
   server: string | undefined;
   timer: ReturnType<typeof setTimeout> | undefined;
 }
@@ -101,19 +117,6 @@ function setAttribute(
   if (value === undefined) element.removeAttribute(name);
   else if (element.getAttribute(name) !== value)
     element.setAttribute(name, value);
-}
-
-function read(controls: readonly Control[]): unknown {
-  const [first] = controls;
-  if (first === undefined) return undefined;
-  if (first.type === 'checkbox' && controls.length === 1)
-    return (first as HTMLInputElement).checked;
-  if (first.type === 'radio')
-    return (
-      controls.find((control) => (control as HTMLInputElement).checked)
-        ?.value ?? ''
-    );
-  return first.value;
 }
 
 export function bindForm<F extends FormFields>(
@@ -173,8 +176,16 @@ export function bindForm<F extends FormFields>(
     });
   }
 
-  const values = (): Record<string, unknown> =>
-    Object.fromEntries(slots.map((slot) => [slot.name, read(slot.controls)]));
+  const values = (): Record<string, unknown> => {
+    // what a native submit sends, so the two sides read the same thing:
+    // disabled controls and unticked boxes send nothing, the last of a name wins
+    const sent = new Map(new FormData(form));
+    return Object.fromEntries(
+      slots.flatMap(({ name }) =>
+        sent.has(name) ? [[name, sent.get(name)]] : []
+      )
+    );
+  };
 
   const render = (
     slot: Slot,
@@ -228,11 +239,18 @@ export function bindForm<F extends FormFields>(
   const slotOf = (target: EventTarget | null) =>
     slots.find((slot) => slot.controls.some((control) => control === target));
 
+  const isRed = (slot: Slot) =>
+    !slot.box.hidden && slot.box.getAttribute('data-state') === 'invalid';
+
   const focusFirstError = () => {
-    const slot = slots.find(
-      (s) => !s.box.hidden && s.box.getAttribute('data-state') === 'invalid'
-    );
-    slot?.controls[0]?.focus();
+    slots
+      .find(isRed)
+      ?.controls.find((control) => control.type !== 'hidden')
+      ?.focus();
+  };
+
+  const clearServerErrors = () => {
+    for (const slot of slots) slot.server = undefined;
   };
 
   const onEvent = (event: Event) => {
@@ -250,11 +268,11 @@ export function bindForm<F extends FormFields>(
         break;
       case 'change':
         slot.touched = slot.shown = true;
-        slot.server = undefined;
+        clearServerErrors();
         break;
       default: // input
         slot.touched = true;
-        slot.server = undefined;
+        clearServerErrors();
         if (timing === 'input') slot.shown = true;
         else if (timing === 'pause') {
           clearTimeout(slot.timer);
@@ -267,40 +285,60 @@ export function bindForm<F extends FormFields>(
     update();
   };
 
-  const validate = (): boolean => {
+  /** Shows every problem and focuses the first; what the server will accept, if it will. */
+  const check = () => {
     for (const slot of slots) slot.touched = slot.shown = true;
     update();
     focusFirstError();
-    return !slots.some(
-      (slot) =>
-        !slot.box.hidden && slot.box.getAttribute('data-state') === 'invalid'
-    );
+    const result = schema.parse(values());
+    if (!result.ok) {
+      // a field the page has no control for: no line to show it in, and without
+      // this a submit button that does nothing and says nothing
+      const lost = result.errors
+        .map((error) => error.field)
+        .filter((name) => !slots.some((slot) => slot.name === name));
+      if (lost.length > 0)
+        console.error(
+          'bindForm: no control in the form for these fields:',
+          lost
+        );
+    }
+    return result.ok && !slots.some(isRed) ? result : undefined;
   };
 
   const submit = (event: Event) => {
-    if (!validate()) {
+    const result = check();
+    if (result === undefined) {
       event.preventDefault();
       return;
     }
     if (onSubmit === undefined) return;
     event.preventDefault();
-    const result = schema.parse(values());
-    if (result.ok) onSubmit(result.values, event);
+    onSubmit(result.values, event);
   };
 
   const events = ['focusin', 'focusout', 'input', 'change'] as const;
   for (const type of events) form.addEventListener(type, onEvent);
   form.addEventListener('submit', submit);
+  // the script may load after the user started, when it loads on first interaction
+  focused = slotOf(form.ownerDocument.activeElement);
+  if (focused !== undefined) focused.touched = true;
   update();
 
   return {
-    validate,
+    validate: () => check() !== undefined,
     values,
     showErrors: (errors) => {
-      for (const error of errors) {
-        const slot = slots.find((s) => s.name === error.field);
-        if (slot === undefined) continue;
-        slot.server = error.message;
+      // an answer without `errors` (a 413, a 429) has nothing to show
+      const list: readonly unknown[] = Array.isArray(errors) ? errors : [];
+      for (const error of list) {
+        const { field, message } = (error ?? {}) as {
+          readonly field?: unknown;
+          readonly message?: unknown;
+        };
+        const slot = slots.find((s) => s.name === field);
+        if (slot === undefined || typeof message !== 'string') continue;
+        slot.server = message;
         slot.touched = slot.shown = true;
       }
       update();
