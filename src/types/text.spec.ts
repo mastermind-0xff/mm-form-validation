@@ -39,6 +39,21 @@ describe('text', () => {
     expect(text().check('a\u0301\u0323\u0308').state).toBe('valid');
   });
 
+  it.each([
+    ['\u200B', 'U+200B'],
+    ['\u200D', 'U+200D'],
+    ['\uFE0F', 'U+FE0F'],
+    ['\u0301', 'U+0301'],
+    ['\u3164', 'U+3164'],
+    ['\u2800', 'U+2800'],
+    ['\uFFA0', 'U+FFA0'],
+  ])('%j alone doesn’t fill a required field, and is named', (value, name) => {
+    expect(text().check(value)).toMatchObject({
+      stage: 'chars',
+      message: `The character ${name} is not allowed.`,
+    });
+  });
+
   it('a set no filler fits gives no examples', () => {
     expect(text({ chars: /./u }).examples()).toEqual({
       valid: [],
@@ -50,10 +65,21 @@ describe('text', () => {
 describe('personName', () => {
   for (const c of typeContract(personName, [{}, { max: 10 }, { min: 2 }]))
     it(c.name, c.run);
+
+  it('a Hangul filler alone isn’t a name', () => {
+    expect(personName().check('\u3164')).toMatchObject({
+      stage: 'chars',
+      message: 'The character U+3164 is not allowed.',
+    });
+  });
 });
 
 describe('place', () => {
   for (const c of typeContract(place, [{}, { max: 20 }])) it(c.name, c.run);
+
+  it('a Hangul filler alone isn’t a place', () => {
+    expect(place().check('\u3164')).toMatchObject({ stage: 'chars' });
+  });
 
   it('City "1" fails, real one-letter places pass', () => {
     expect(place().check('1')).toMatchObject({

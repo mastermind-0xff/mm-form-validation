@@ -1,7 +1,8 @@
 /**
- * `email`: trimmed and lower-cased, at most 254 characters; the shape is
- * aesweets' rule (`server/auth/input.ts`), with the characters it refuses
- * named by the `chars` stage instead of one generic message.
+ * `email`: trimmed and lower-cased, at most 254 characters. The shape is
+ * aesweets' rule (`server/auth/input.ts`); the characters it refuses, and some
+ * more that rule lets through, are named by the `chars` stage instead of one
+ * generic message. It checks the shape only: never hand the value to a shell.
  */
 import { nfc } from '../chars.js';
 import { defineType } from '../core/define-type.js';
@@ -12,7 +13,11 @@ export interface EmailArgs {
   readonly max: number;
 }
 
-const BAD = /[\s<>()",;\p{Cc}]|\p{M}{31}/u;
+// `:` too: a mailer reads `a:b@c.cc` as a group and sends to `b@c.cc`. No real
+// address needs what can't be seen, or what reads as another address (bidi
+// controls, zero width characters): `chars.ts` says more about these classes.
+const BAD =
+  /[\s<>()",;:\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{NChar}\u115F\u1160\u2800\u3164\uFFA0]|\p{M}{31}/u;
 const SHAPE = /^[^@]+@[^@]+\.[^@]{2,}$/u;
 const DOMAIN = '@example.com';
 

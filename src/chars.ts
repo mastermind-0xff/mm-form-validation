@@ -6,24 +6,33 @@
  */
 /* eslint-disable no-useless-escape -- the escapes keep the classes valid with the v flag (CLAUDE.md) */
 
-// control characters and the bidi overrides and isolates (U+202A–U+202E,
-// U+2066–U+2069) that can make text read differently than it is stored
-const BIDI = '\\u202A-\\u202E\\u2066-\\u2069';
+// What free text refuses, because nobody can see it or it breaks what handles
+// the text later: format characters (zero width, soft hyphen, bidi controls,
+// tags) except the two joiners emoji and some scripts need, surrogates without
+// a pair, private use, noncharacters, and the letters and symbols drawn as
+// nothing (Hangul fillers, blank Braille). Not unassigned code points (\p{Cn}):
+// engines disagree on which those are, so the two sides would too. At the start
+// of a value a mark or a joiner has nothing to attach to, and alone it would
+// fill a required field with nothing to see.
+const FREE_TEXT =
+  '^[\\p{M}\\u200C\\u200D]|\\p{M}{31}|(?![\\u200C\\u200D])[\\p{Cf}\\p{Cs}\\p{Co}\\p{NChar}\\u115F\\u1160\\u2800\\u3164\\uFFA0]';
 
 export const charSets = {
   /** Printable text on one line. */
-  text: new RegExp(`[\\p{Cc}${BIDI}]|\\p{M}{31}`, 'u'),
+  text: new RegExp(`${FREE_TEXT}|\\p{Cc}`, 'u'),
   /** `text` plus line breaks and tabs. */
   multiline: new RegExp(
-    `[\\x00-\\x08\\x0B-\\x1F\\x7F-\\x9F${BIDI}]|\\p{M}{31}`,
+    `${FREE_TEXT}|[\\x00-\\x08\\x0B-\\x1F\\x7F-\\x9F]`,
     'u'
   ),
-  /** Letters (any script), combining marks, space, `'` `’` `-` `.` */
-  name: /[^\p{L}\p{M} '’\-.]|\p{M}{31}/u,
+  /** Letters (any script, no fillers), combining marks, space, `'` `’` `-` `.` */
+  name: /[^\p{L}\p{M} '’\-.]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
   /** `name` plus digits, `(` `)` `,` `/` */
-  place: /[^\p{L}\p{M}\p{N} '’\-.\(\),\/]|\p{M}{31}/u,
+  place:
+    /[^\p{L}\p{M}\p{N} '’\-.\(\),\/]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
   /** `place` plus `#` `№` `:` `&` `"` */
-  address: /[^\p{L}\p{M}\p{N} '’\-.\(\),\/#№:&"]|\p{M}{31}/u,
+  address:
+    /[^\p{L}\p{M}\p{N} '’\-.\(\),\/#№:&"]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
   digits: /[^0-9]/u,
   alnum: /[^A-Za-z0-9]/u,
   /** Letters and digits (ASCII), `-` and `_` */
@@ -63,5 +72,15 @@ export function nfc(value: string): string {
 
 /** Length in code points: an emoji counts once (it is two UTF-16 units in `length`). */
 export function codePoints(value: string): number {
-  return Array.from(value).length;
+  // no array: `Array.from` took 1 GB on a 100 MB value
+  let count = value.length;
+  for (let i = 0; i < value.length - 1; i++)
+    if (
+      (value.charCodeAt(i) & 0xfc00) === 0xd800 &&
+      (value.charCodeAt(i + 1) & 0xfc00) === 0xdc00
+    ) {
+      count--;
+      i++;
+    }
+  return count;
 }
