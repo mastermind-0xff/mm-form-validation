@@ -52,8 +52,7 @@ bindForm(formElement, register, { onSubmit: (values) => send(values) });
 
 The binding only sets attributes (`data-state`, `data-message`, `required`,
 `aria-invalid`, `hidden`) and the text of each message line; the page's CSS
-gives the look. `examples/css` has the structure and five looks driven by
-`--fv-*` custom properties.
+gives the look. Make that CSS in the look designer below, or write your own.
 
 ## Good to know
 
@@ -90,16 +89,72 @@ gives the look. `examples/css` has the structure and five looks driven by
 - `destroy()` removes the listeners and timers. Attributes and message lines stay
   as they are.
 
-## Examples
+## The look designer
 
 ```sh
 npm run examples
 ```
 
-Builds the package and serves `examples/` at http://localhost:5178/examples/:
-sign-in, register, billing (company fields, a VAT number shaped by the
-country) and contact forms, with a switch for the look, the timing of errors
-and the scheme, and a server that checks the same schemas.
+Builds the package and serves http://localhost:5178/examples/: four real forms
+(sign-in, register, billing with company fields and a VAT number shaped by the
+country, contact), a server that checks the same schemas, and a panel to design
+how the fields look.
+
+- **Design:** one of five looks (edge, underline, outline, icon, filled), spacing,
+  text, light and dark colors, motion, and when an unfinished value turns red. The
+  forms use the CSS that gets exported, so what you see is what you get. A control
+  the chosen look doesn't use is dimmed, and its token is left out of the CSS.
+- **Export:** an agent brief (one Markdown file with the settings, the CSS, the
+  markup and how to check the result, so an agent in another project needs nothing
+  else), the settings as JSON, the stylesheet, and the block for `<head>`.
+- **Import:** paste or load the settings or a saved brief to carry on where you
+  left off.
+
+### CSS in the HTML
+
+When a page is mainly a form, a late stylesheet makes the whole page jump. Choose
+what goes into a `<style>` in the HTML, and the rest loads without blocking:
+
+| Inline block    | Holds                                    | Before the stylesheet arrives      |
+| --------------- | ---------------------------------------- | ---------------------------------- |
+| None            | nothing                                  | the link must block rendering      |
+| Layout          | sizes and spacing                        | nothing moves; colors change later |
+| Layout + colors | everything shown before the form is used | nothing moves or flashes           |
+| Everything      | the whole stylesheet                     | there is nothing to wait for       |
+
+For the edge look these come to about 0.5, 0.9 and 1.2 KB gzipped, against 1.9 KB
+for the whole stylesheet. _Leave what is inlined out of the stylesheet_ sends nothing
+twice, but then every page that uses the stylesheet needs the block. _Check the layout
+shift_ measures every element in the forms with the block alone and with everything,
+and reports how far anything moves.
+
+CSS can't prevent every shift. The server must send the message lines, even when
+empty, and `hidden` on fields that start inactive: the binding would add both only
+when its script runs.
+
+### In code
+
+The panel is a front for `@mmutils/form-validation/css`, which needs neither a
+browser nor Node. A form's page bundle never imports it.
+
+```js
+import {
+  agentBrief,
+  generateCss,
+  headSnippet,
+  parseLook,
+} from '@mmutils/form-validation/css';
+
+const result = parseLook(JSON.parse(settingsText)); // missing values get defaults
+if (!result.ok) throw new Error(result.errors.join('\n'));
+
+const { stylesheet, inline } = generateCss(result.look);
+const head = headSnippet(result.look, '/css/form-fields.css');
+const brief = agentBrief(result.look);
+```
+
+The output goes into a `<style>`, so `parseLook` accepts each value only in a shape
+that can't leave its declaration, and `generateCss` refuses anything else.
 
 ## License
 

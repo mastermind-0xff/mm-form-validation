@@ -1,84 +1,17 @@
 /**
  * The example page: binds each form to its schema, sends valid forms (or,
  * with "Send as is", the raw values) to the example server and shows its
- * answer, and switches the look, the timing and the tokens.
+ * answer. The look and the timing come from the designer panel (designer.js).
  */
 import { bindForm } from '../dist/esm/dom/index.js';
 import { optionLabel, optionValue } from '../dist/esm/index.js';
+import { startDesigner } from './designer.js';
 import { countries, forms } from './forms.js';
-
-const root = document.documentElement;
-
-const stored = (key, fallback) => {
-  try {
-    return localStorage.getItem(`fv-demo-${key}`) ?? fallback;
-  } catch {
-    return fallback;
-  }
-};
-const store = (key, value) => {
-  try {
-    if (value === undefined) localStorage.removeItem(`fv-demo-${key}`);
-    else localStorage.setItem(`fv-demo-${key}`, value);
-  } catch {
-    // private mode: the choice lasts until the page reloads
-  }
-};
 
 // the drop-down lists the values the schema accepts: one list for both
 for (const select of document.querySelectorAll('[data-options="countries"]'))
   for (const option of countries)
     select.add(new Option(optionLabel(option), optionValue(option)));
-
-/** A group of radio buttons in the toolbar, remembered between visits. */
-function choose(name, fallback, apply) {
-  const value = stored(name, fallback);
-  const input = document.querySelector(
-    `input[name="${name}"][value="${CSS.escape(value)}"]`
-  );
-  if (input) input.checked = true;
-  apply(input ? value : fallback);
-  document.getElementById(name).addEventListener('change', (event) => {
-    store(name, event.target.value);
-    apply(event.target.value);
-  });
-}
-
-choose('look', 'edge', (look) => {
-  root.dataset.look = look;
-});
-choose('scheme', 'light', (scheme) => {
-  root.dataset.scheme = scheme;
-});
-
-// the tokens: each control sets one --fv-* custom property
-const tokens = [...document.querySelectorAll('[data-token]')];
-const defaults = new Map(tokens.map((input) => [input, input.value]));
-const showToken = (input) => {
-  const output = document.querySelector(
-    `output[data-for="${input.dataset.token}"]`
-  );
-  if (output) output.textContent = `${input.value}${input.dataset.unit ?? ''}`;
-};
-const setToken = (input) => {
-  const value = `${input.value}${input.dataset.unit ?? ''}`;
-  const changed = input.value !== defaults.get(input);
-  if (changed) root.style.setProperty(input.dataset.token, value);
-  else root.style.removeProperty(input.dataset.token);
-  store(`token${input.dataset.token}`, changed ? input.value : undefined);
-  showToken(input);
-};
-for (const input of tokens) {
-  input.value = stored(`token${input.dataset.token}`, input.value);
-  setToken(input);
-  input.addEventListener('input', () => setToken(input));
-}
-document.getElementById('reset-tokens').addEventListener('click', () => {
-  for (const input of tokens) {
-    input.value = defaults.get(input);
-    setToken(input);
-  }
-});
 
 /** Sends values to the example server; its errors go into the message lines. */
 async function send(name, values, bound, output) {
@@ -144,4 +77,4 @@ document.addEventListener('click', (event) => {
   }
 });
 
-choose('timing', 'leave', bindAll);
+startDesigner({ onTiming: bindAll });
