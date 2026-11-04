@@ -428,8 +428,14 @@ describe('bindForm: submit, server errors, reset, destroy', () => {
     expect(onSubmit).not.toHaveBeenCalled();
     expect(report).toHaveBeenCalledOnce();
     expect(report.mock.calls[0]).toEqual([
-      'bindForm: no control in the form for these fields:',
-      ['extra'],
+      'bindForm: no control for',
+      [
+        {
+          field: 'extra',
+          stage: 'required',
+          message: 'This field is required.',
+        },
+      ],
     ]);
     expect(bound.validate()).toBe(false);
     report.mockRestore();

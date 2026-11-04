@@ -54,8 +54,8 @@ export interface BoundForm {
   validate(): boolean;
   /**
    * The schema's fields as a native submit sends them, by name: strings, a
-   * ticked checkbox's `value` (`on` without one). What isn't sent is left out:
-   * disabled controls, unticked boxes. The last control of a name wins.
+   * ticked checkbox's `value` (`on` without one). What isn't sent is
+   * `undefined`: disabled controls, unticked boxes. The last of a name wins.
    */
   values(): Record<string, unknown>;
   /**
@@ -180,11 +180,7 @@ export function bindForm<F extends FormFields>(
     // what a native submit sends, so the two sides read the same thing:
     // disabled controls and unticked boxes send nothing, the last of a name wins
     const sent = new Map(new FormData(form));
-    return Object.fromEntries(
-      slots.flatMap(({ name }) =>
-        sent.has(name) ? [[name, sent.get(name)]] : []
-      )
-    );
+    return Object.fromEntries(slots.map(({ name }) => [name, sent.get(name)]));
   };
 
   const render = (
@@ -294,14 +290,10 @@ export function bindForm<F extends FormFields>(
     if (!result.ok) {
       // a field the page has no control for: no line to show it in, and without
       // this a submit button that does nothing and says nothing
-      const lost = result.errors
-        .map((error) => error.field)
-        .filter((name) => !slots.some((slot) => slot.name === name));
-      if (lost.length > 0)
-        console.error(
-          'bindForm: no control in the form for these fields:',
-          lost
-        );
+      const lost = result.errors.filter(
+        ({ field }) => !slots.some((slot) => slot.name === field)
+      );
+      if (lost.length > 0) console.error('bindForm: no control for', lost);
     }
     return result.ok && !slots.some(isRed) ? result : undefined;
   };
