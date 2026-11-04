@@ -70,6 +70,36 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe('bindForm: DOM writes', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('leaves required and hidden alone while they stay the same', () => {
+    bind();
+    type('name', 'An');
+    const required = vi.spyOn(HTMLInputElement.prototype, 'required', 'set');
+    const hidden = vi.spyOn(HTMLElement.prototype, 'hidden', 'set');
+    type('name', 'Ana');
+    expect(required).not.toHaveBeenCalled();
+    expect(hidden).not.toHaveBeenCalled();
+  });
+
+  it('still writes them when they change', () => {
+    bind();
+    expect(box('company').hidden).toBe(true);
+    expect(control('city').required).toBe(false);
+    form.querySelector<HTMLInputElement>('[value="company"]')!.click();
+    expect(box('company').hidden).toBe(false);
+    expect(control('company').required).toBe(true);
+    expect(control('city').required).toBe(true);
+    form.querySelector<HTMLInputElement>('[value="person"]')!.click();
+    expect(box('company').hidden).toBe(true);
+    expect(control('company').required).toBe(false);
+    expect(control('city').required).toBe(false);
+  });
+});
+
 describe('bindForm: setup', () => {
   it('takes over from the browser checks and links the message lines', () => {
     bind();

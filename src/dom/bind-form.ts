@@ -193,12 +193,12 @@ export function bindForm<F extends FormFields>(
         message = field.hint(view) ?? '';
       if (message && kind === undefined) kind = 'hint';
     }
-    slot.box.hidden = !active;
+    if (slot.box.hidden !== !active) slot.box.hidden = !active;
     setAttribute(slot.box, 'data-state', state);
     setAttribute(slot.box, 'data-message', kind);
     const required = active && field.isRequired(view);
     for (const control of slot.controls) {
-      control.required = required;
+      if (control.required !== required) control.required = required;
       setAttribute(
         control,
         'aria-invalid',
