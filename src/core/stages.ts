@@ -100,7 +100,8 @@ export function pattern<A>(
   return {
     name: 'pattern',
     check: (value, args) => {
-      if (re.test(value)) return undefined;
+      // `search`, not `test`: a regex with the `g` or `y` flag keeps no state
+      if (value.search(re) !== -1) return undefined;
       return typeof message === 'string' ?
           { message, incomplete: true }
         : message(value, args);

@@ -75,4 +75,14 @@ describe('stages', () => {
     }));
     expect(computed.check('1', { n: 3 }, {})).toEqual({ message: '2 more.' });
   });
+
+  it('pattern gives the same answer every time, with a g or y flag too', () => {
+    for (const flags of ['g', 'y', 'gu']) {
+      const stage = pattern(new RegExp('^[0-9]+$', flags), 'Digits only.');
+      for (let i = 0; i < 4; i++)
+        expect(stage.check('12', {}, {})).toBeUndefined();
+      for (let i = 0; i < 4; i++)
+        expect(stage.check('1a', {}, {})?.message).toBe('Digits only.');
+    }
+  });
 });
