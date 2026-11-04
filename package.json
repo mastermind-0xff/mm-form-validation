@@ -35,6 +35,11 @@
       "import": "./dist/esm/testing/index.js",
       "require": "./dist/cjs/testing/index.cjs"
     },
+    "./css": {
+      "types": "./dist/types/css/index.d.ts",
+      "import": "./dist/esm/css/index.js",
+      "require": "./dist/cjs/css/index.cjs"
+    },
     "./package.json": "./package.json"
   },
   "files": [
