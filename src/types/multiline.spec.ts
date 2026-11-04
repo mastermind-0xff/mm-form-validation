@@ -59,4 +59,13 @@ describe('multiline', () => {
       message: 'At most 1 line (now 2).',
     });
   });
+
+  it('counts the line and paragraph separators too: browsers draw them as breaks', () => {
+    const field = multiline({ maxLines: 2 });
+    expect(field.check('a\u2028b\u2029c\nd')).toMatchObject({
+      stage: 'lines',
+      message: 'At most 2 lines (now 4).',
+    });
+    expect(field.check('a\u2028b').state).toBe('valid');
+  });
 });

@@ -58,11 +58,21 @@ describe('vatNumber', () => {
       incomplete: true,
     });
     expect(bg.check('12345678901')).toMatchObject({
-      message: 'BG and 9 or 10 digits: BG12345678901',
+      message: 'BG and 9 or 10 digits: BG1234567890…',
       incomplete: false,
     });
     expect(vatNumber({ country: 'NL' }).check('NL12345')).toMatchObject({
       message: 'NL and 9 digits, B and 2 digits: NL12345XXXXBXX',
+    });
+  });
+
+  it('echoes no more of the value than the format can hold', () => {
+    const result = vatNumber({ country: 'BG' }).check(
+      `BG${'1'.repeat(16_000)}`
+    );
+    expect(result).toMatchObject({
+      stage: 'pattern',
+      message: `BG and 9 or 10 digits: BG${'1'.repeat(10)}…`,
     });
   });
 

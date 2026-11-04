@@ -21,7 +21,8 @@ export interface MultilineArgs {
 const lines: Stage<{ readonly maxLines: number | undefined }> = {
   name: 'lines',
   check: (value, { maxLines }) => {
-    const count = value.split('\n').length;
+    // U+2028 and U+2029 too: browsers draw them as line breaks
+    const count = value.split(/[\n\u2028\u2029]/u).length;
     if (maxLines === undefined || count <= maxLines) return undefined;
     return {
       message: `At most ${plural(maxLines, 'line')} (now ${count}).`,

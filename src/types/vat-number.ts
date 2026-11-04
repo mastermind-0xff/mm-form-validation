@@ -99,12 +99,15 @@ function split(value: string, country: string): Split | undefined {
 }
 
 /** The mask with the typed characters in place: "BG1234XXXXX" (all ASCII). */
-function filled(prefix: string, mask: string, national: string): string {
-  return prefix + national + mask.slice(national.length);
+function filled(prefix: string, [, , mask, max]: Format, national: string) {
+  // the message goes back to the client: no more of the value than can fit
+  return national.length > max ?
+      `${prefix}${national.slice(0, max)}…`
+    : prefix + national + mask.slice(national.length);
 }
 
 function shape(prefix: string, format: Format, national = ''): string {
-  return `${prefix} and ${format[1]}: ${filled(prefix, format[2], national)}`;
+  return `${prefix} and ${format[1]}: ${filled(prefix, format, national)}`;
 }
 
 export const vatNumber = /* @__PURE__ */ defineType<VatNumberArgs>({
