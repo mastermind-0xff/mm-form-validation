@@ -34,7 +34,7 @@ for (const select of document.querySelectorAll('[data-options="countries"]'))
 function choose(name, fallback, apply) {
   const value = stored(name, fallback);
   const input = document.querySelector(
-    `input[name="${name}"][value="${value}"]`
+    `input[name="${name}"][value="${CSS.escape(value)}"]`
   );
   if (input) input.checked = true;
   apply(input ? value : fallback);
@@ -101,11 +101,16 @@ async function send(name, values, bound, output) {
     output.textContent = `Server: accepted. Stored values:\n${JSON.stringify(answer.values, null, 2)}`;
     return;
   }
-  bound.showErrors(answer.errors);
-  output.textContent = [
-    `Server: ${answer.errors.length} field(s) refused.`,
-    ...answer.errors.map((e) => `${e.field} (${e.stage}): ${e.message}`),
-  ].join('\n');
+  // an answer without `errors` (invalid_json, a 413, a 429): no field to mark
+  const errors = answer.errors ?? [];
+  bound.showErrors(errors);
+  output.textContent =
+    errors.length === 0 ?
+      `Server: refused (${answer.error ?? 'no reason given'}).`
+    : [
+        `Server: ${errors.length} field(s) refused.`,
+        ...errors.map((e) => `${e.field} (${e.stage}): ${e.message}`),
+      ].join('\n');
 }
 
 const bound = new Map();

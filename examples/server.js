@@ -42,7 +42,12 @@ async function readJson(req) {
 }
 
 const server = createServer(async (req, res) => {
-  const url = new URL(req.url ?? '/', 'http://localhost');
+  let url;
+  try {
+    url = new URL(req.url ?? '/', 'http://localhost');
+  } catch {
+    return reply(res, 400, 'Bad request', 'text/plain');
+  }
   if (url.pathname.startsWith('/api/')) {
     const form =
       Object.hasOwn(forms, url.pathname.slice(5)) ?

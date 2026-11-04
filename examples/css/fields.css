@@ -100,10 +100,9 @@
   color: inherit;
   font: inherit;
   line-height: 1.4;
+  /* nothing that moves the layout: a state change shouldn't lay out every frame */
   transition:
     border-color var(--fv-speed) var(--fv-ease),
-    border-width var(--fv-speed) var(--fv-ease),
-    padding var(--fv-speed) var(--fv-ease),
     box-shadow var(--fv-speed) var(--fv-ease),
     background-color var(--fv-speed) var(--fv-ease);
 }
