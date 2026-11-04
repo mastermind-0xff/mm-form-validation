@@ -55,6 +55,41 @@ The binding only sets attributes (`data-state`, `data-message`, `required`,
 gives the look. `examples/css` has the structure and five looks driven by
 `--fv-*` custom properties.
 
+## Good to know
+
+**On the server**
+
+- Put a body limit in front of `parse`. Checks stay fast on hostile values, but
+  they still read what they are given.
+- A value more than 4 times over `max` (in UTF-16 units) fails at `length` before
+  it is normalized, so one padded with thousands of spaces is refused, also in an
+  optional field. Real text at `max` stays under the limit.
+- `email` checks the shape only. A value like `` `id`@example.com `` is valid, so
+  never hand one to a shell or a command line.
+- Free text refuses what can't be seen: zero width characters, soft hyphens, bidi
+  controls, Hangul fillers. Text pasted with one of those fails, with a message
+  naming the character. The joiners U+200C and U+200D stay, for emoji and for
+  scripts that need them.
+- Letters come from the JavaScript engine's Unicode tables. A newly encoded letter
+  can pass on a newer engine and fail on an older one, in `personName`, `place` and
+  `streetAddress`. Nothing can fix that from here.
+
+**In the browser**
+
+- `bindForm` reads a form as a native submit sends it (`new FormData(form)`), so
+  markup decides what is checked. A disabled control sends nothing, so a required
+  field that is disabled can never pass: use `when` to switch a field off. Of
+  several controls of a name, the last wins.
+- A checkbox needs no `value`, or one the type reads as ticked (`1`, `on`, `true`).
+  With `value="yes"` it fails at `type`, in the browser and on the server.
+- A required field with no control in the page blocks the submit and is reported
+  with `console.error`.
+- `showErrors` messages last until any field changes. The checks then show again
+  whatever is still wrong; what only the server knows comes back with the next
+  answer.
+- `destroy()` removes the listeners and timers. Attributes and message lines stay
+  as they are.
+
 ## Examples
 
 ```sh
