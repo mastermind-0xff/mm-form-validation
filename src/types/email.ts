@@ -3,6 +3,7 @@
  * aesweets' rule (`server/auth/input.ts`), with the characters it refuses
  * named by the `chars` stage instead of one generic message.
  */
+import { nfc } from '../chars.js';
 import { defineType } from '../core/define-type.js';
 import { charsStage, length, pattern } from '../core/stages.js';
 
@@ -11,14 +12,14 @@ export interface EmailArgs {
   readonly max: number;
 }
 
-const BAD = /[\s<>()",;\p{Cc}]/u;
+const BAD = /[\s<>()",;\p{Cc}]|\p{M}{31}/u;
 const SHAPE = /^[^@]+@[^@]+\.[^@]{2,}$/u;
 const DOMAIN = '@example.com';
 
 export const email = /* @__PURE__ */ defineType<EmailArgs>({
   name: 'email',
   defaults: { min: 1, max: 254 },
-  normalize: (value) => value.normalize('NFC').trim().toLowerCase(),
+  normalize: (value) => nfc(value).trim().toLowerCase(),
   stages: [
     charsStage(() => BAD),
     length,

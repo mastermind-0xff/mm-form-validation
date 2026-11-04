@@ -3,7 +3,7 @@
  * user's "text-multiline"). Line breaks become `\n`, spaces at the end of each
  * line and blank lines around the text are dropped, the value is NFC.
  */
-import type { CharSet, Kind } from '../chars.js';
+import { nfc, type CharSet, type Kind } from '../chars.js';
 import { defineType } from '../core/define-type.js';
 import { chars, contains, fits, length, plural } from '../core/stages.js';
 import type { Stage } from '../core/types.js';
@@ -62,7 +62,7 @@ export const multiline = /* @__PURE__ */ defineType<MultilineArgs>({
     maxLines: undefined,
   },
   normalize: (value) =>
-    trimLineEnds(value.normalize('NFC').replace(/\r\n?/gu, '\n')).trim(),
+    trimLineEnds(nfc(value).replace(/\r\n?/gu, '\n')).trim(),
   stages: [chars, length, contains, lines],
   examples: (args) => {
     const base = textExamples(args);

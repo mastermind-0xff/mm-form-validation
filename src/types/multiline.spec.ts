@@ -40,6 +40,15 @@ describe('multiline', () => {
     expect(result).toMatchObject({ state: 'invalid', stage: 'length' });
   });
 
+  it('stays fast on a long run of combining marks', () => {
+    const start = performance.now();
+    const result = multiline({ max: 1_000_000 }).check(
+      `a${'\u0301\u0323'.repeat(51_000)}`
+    );
+    expect(performance.now() - start).toBeLessThan(1000);
+    expect(result).toMatchObject({ state: 'invalid', stage: 'chars' });
+  });
+
   it('counts lines', () => {
     expect(multiline({ maxLines: 2 }).check('a\nb\nc')).toMatchObject({
       stage: 'lines',

@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { text } from '../types/text.js';
 import { defineType, preset, readScalar, readString } from './define-type.js';
+import { length } from './stages.js';
 
 describe('readers', () => {
   it('readString: strings, missing is empty, the rest is the wrong type', () => {
@@ -125,6 +126,93 @@ describe('defineType', () => {
   it('examples with the resolved arguments', () => {
     expect(upper().examples()).toEqual({ valid: ['ab'], invalid: [] });
     expect(upper.spec.name).toBe('upper');
+  });
+});
+
+describe('defineType: a value far over max', () => {
+  const normalize = vi.fn((value: string) => value.trim());
+  const short = defineType<{ readonly min: number; readonly max: number }>({
+    name: 'short',
+    defaults: { min: 1, max: 3 },
+    normalize,
+    stages: [length],
+    examples: () => ({ valid: ['ab'], invalid: [] }),
+  });
+
+  it('fails at length before it is normalized', () => {
+    normalize.mockClear();
+    expect(short().check('x'.repeat(13))).toMatchObject({
+      stage: 'length',
+      message: 'At most 3 characters (now 13).',
+      incomplete: false,
+    });
+    expect(normalize).not.toHaveBeenCalled();
+    // up to 4 times over, normalizing may still bring it down
+    expect(short().check(`  ab${' '.repeat(8)}`)).toEqual({
+      state: 'valid',
+      value: 'ab',
+    });
+    expect(normalize).toHaveBeenCalledOnce();
+  });
+
+  it('isn’t normalized for the other fields’ functions either', () => {
+    normalize.mockClear();
+    const padded = `x${' '.repeat(12)}`;
+    expect(short().view(padded)).toBe(padded);
+    expect(normalize).not.toHaveBeenCalled();
+    expect(short({ max: 10 }).view(padded)).toBe('x');
+  });
+
+  it('uses the field’s max, also one that depends on the values', () => {
+    const field = short({ max: (v) => Number(v['limit']) });
+    expect(field.check('x'.repeat(41), { limit: 10 })).toMatchObject({
+      stage: 'length',
+    });
+    normalize.mockClear();
+    field.check('x'.repeat(41), { limit: 100 });
+    expect(normalize).toHaveBeenCalledOnce();
+    // `view` has no values yet: it goes by the type's default
+    normalize.mockClear();
+    field.view('x'.repeat(13));
+    expect(normalize).not.toHaveBeenCalled();
+  });
+
+  it('honours the field’s message', () => {
+    expect(
+      short({ messages: { length: 'Too long.' } }).check('x'.repeat(13))
+    ).toMatchObject({ message: 'Too long.' });
+  });
+
+  it('leaves types without a length stage alone', () => {
+    const free = vi.fn((value: string) => value);
+    const field = defineType<{ readonly max: number }>({
+      name: 'free',
+      defaults: { max: 1 },
+      normalize: free,
+      stages: [],
+      examples: () => ({ valid: ['a'], invalid: [] }),
+    })();
+    expect(field.check('x'.repeat(100)).state).toBe('valid');
+    expect(free).toHaveBeenCalledOnce();
+    expect(field.view('x'.repeat(100))).toBe('x'.repeat(100));
+    expect(free).toHaveBeenCalledTimes(2);
+  });
+
+  it('padding this far over max is refused, also in an optional field', () => {
+    const optional = text({ required: false });
+    expect(optional.check(' '.repeat(1020))).toEqual({ state: 'empty' });
+    expect(optional.check(' '.repeat(1021))).toMatchObject({
+      stage: 'length',
+      message: 'At most 255 characters (now 1021).',
+    });
+  });
+
+  it('real text at max still fits: emoji and decomposed Hangul', () => {
+    expect(text({ max: 5 }).check('😀'.repeat(5)).state).toBe('valid');
+    expect(text({ max: 5 }).check('각'.normalize('NFD').repeat(5))).toEqual({
+      state: 'valid',
+      value: '각'.repeat(5),
+    });
   });
 });
 

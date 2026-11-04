@@ -18,7 +18,7 @@ export function plural(n: number, word: string): string {
 
 /** How a character reads in a message: "<", or U+0009 for one you can't see. */
 function shown(char: string): string {
-  return /[\p{C}\p{Z}]/u.test(char) ?
+  return /[\p{C}\p{M}\p{Z}]/u.test(char) ?
       `U+${(char.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, '0')}`
     : `"${char}"`;
 }

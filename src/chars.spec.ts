@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { badChar, charSets, codePoints, kinds } from './chars.js';
+import { badChar, charSets, codePoints, kinds, nfc } from './chars.js';
 
 describe('charSets', () => {
   it('compile with the v flag too (they may end up in a pattern attribute)', () => {
@@ -10,7 +10,7 @@ describe('charSets', () => {
   it.each([
     ['text', 'Ae Sweets Ltd. Café №5 <b>', undefined],
     ['text', 'tab\there', '\t'],
-    ['text', 'bidi‮override', '‮'],
+    ['text', 'bidi\u202Eoverride', '\u202E'],
     ['multiline', 'two\nlines\tand a tab', undefined],
     ['multiline', 'bell\u0007', '\u0007'],
     ['name', 'Anne-Marie O’Neil', undefined],
@@ -39,11 +39,36 @@ describe('charSets', () => {
   });
 });
 
+describe('nfc', () => {
+  const marks = (n: number) => '\u0301\u0323'.repeat(n / 2);
+  const sets = ['text', 'multiline', 'name', 'place', 'address'] as const;
+
+  it('composes, up to the 30 marks in a row any text needs (UAX #15)', () => {
+    expect(nfc('e\u0301')).toBe('é');
+    expect(nfc(`a${marks(30)}`)).toBe(`a${marks(30)}`.normalize('NFC'));
+  });
+
+  it('leaves a longer run alone: the named sets refuse it', () => {
+    const long = `a${marks(32)}`;
+    expect(nfc(long)).toBe(long);
+    for (const set of sets) {
+      expect(badChar(long, set)).toBeDefined();
+      expect(badChar(`a${marks(30)}`, set)).toBeUndefined();
+    }
+  });
+
+  it('stays fast however many marks there are', () => {
+    const start = performance.now();
+    nfc(`a${marks(200_000)}`);
+    expect(performance.now() - start).toBeLessThan(1000);
+  });
+});
+
 describe('codePoints', () => {
   it('counts an emoji once and combining marks apart', () => {
     expect(codePoints('abc')).toBe(3);
     expect(codePoints('😀')).toBe(1);
     expect('😀'.length).toBe(2);
-    expect(codePoints('é')).toBe(2);
+    expect(codePoints('e\u0301')).toBe(2);
   });
 });

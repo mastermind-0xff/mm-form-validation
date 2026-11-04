@@ -2,7 +2,7 @@
  * `text`: one line of text (plan §5), and its presets `personName`, `place`
  * and `streetAddress`. Whitespace is collapsed and trimmed, the value is NFC.
  */
-import { badChar, kinds, type CharSet, type Kind } from '../chars.js';
+import { badChar, kinds, nfc, type CharSet, type Kind } from '../chars.js';
 import { defineType, preset } from '../core/define-type.js';
 import { chars, contains, fits, length } from '../core/stages.js';
 import type { Examples } from '../core/types.js';
@@ -51,7 +51,7 @@ export function textExamples(args: TextArgs): Examples {
 export const text = /* @__PURE__ */ defineType<TextArgs>({
   name: 'text',
   defaults: { min: 1, max: 255, chars: 'text', contains: undefined },
-  normalize: (value) => value.normalize('NFC').replace(/\s+/gu, ' ').trim(),
+  normalize: (value) => nfc(value).replace(/\s+/gu, ' ').trim(),
   stages: [chars, length, contains],
   examples: textExamples,
 });

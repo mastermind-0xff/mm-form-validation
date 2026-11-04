@@ -19,10 +19,24 @@ describe('text', () => {
       state: 'valid',
       value: 'Ae Sweets Ltd.',
     });
-    expect(text().check('Café')).toEqual({
+    expect(text().check('Cafe\u0301')).toEqual({
       state: 'valid',
       value: 'Café',
     });
+  });
+
+  it('refuses a long run of combining marks, and fast', () => {
+    const start = performance.now();
+    const result = text({ max: 1_000_000 }).check(
+      `a${'\u0301\u0323'.repeat(51_000)}`
+    );
+    expect(performance.now() - start).toBeLessThan(1000);
+    expect(result).toMatchObject({
+      stage: 'chars',
+      message: 'The character U+0301 is not allowed.',
+    });
+    // three marks on a letter are nothing special
+    expect(text().check('a\u0301\u0323\u0308').state).toBe('valid');
   });
 
   it('a set no filler fits gives no examples', () => {

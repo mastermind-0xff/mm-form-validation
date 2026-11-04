@@ -61,7 +61,8 @@ const WRONG_TYPES: readonly unknown[] = [{}, [], null];
  * Cases for one type and some argument sets: valid examples pass and stay the
  * same when checked again, invalid ones fail at their stage with a plain-text
  * message that per-field `messages` replace, empty is `required` or `empty`,
- * wrong raw types fail at `type`, and the examples reach `max` and `max + 1`.
+ * wrong raw types fail at `type`, the examples reach `max` and `max + 1`, and a
+ * value far over `max` fails at `length`.
  */
 export function typeContract<A extends object, V>(
   type: FieldType<A, V>,
@@ -144,6 +145,18 @@ export function typeContract<A extends object, V>(
     });
 
     const max = (field.args(values) as { readonly max?: unknown }).max;
+    if (
+      typeof max === 'number' &&
+      type.spec.stages.some((stage) => stage.name === 'length')
+    )
+      add(`a value far over max ${max} fails at length`, () => {
+        const result = field.check(' '.repeat(max * 4 + 1), values);
+        assert(
+          result.state === 'invalid' && result.stage === 'length',
+          `expected invalid at length, got ${outcome(result)}`
+        );
+        assertPlain(result.message);
+      });
     if (typeof max === 'number')
       add(`examples reach max ${max} and ${max + 1}`, () => {
         const length = (value: unknown) =>

@@ -1,8 +1,8 @@
 /**
  * `defineType` turns a type (plan §4.5) into a field factory: `text({ max:
  * 100 })`. The field runs the same pipeline in the browser and on the server:
- * read → normalize → empty? (`required`) → the type's stages → the field's
- * `rule` → finish → value.
+ * read → far over `max`? (`length`) → normalize → empty? (`required`) → the
+ * type's stages → the field's `rule` → finish → value.
  */
 import type {
   Dynamic,
@@ -39,6 +39,14 @@ export function resolve<T>(value: Dynamic<T>, values: FormValues): T {
 
 const EMPTY = { state: 'empty' } as const;
 
+/**
+ * How many UTF-16 units a raw value may hold per character of `max` and still
+ * be normalized; beyond that it fails at `length` first, so no hostile value
+ * makes normalizing the expensive part of a check. Real text at `max` stays
+ * under it: an emoji takes 2 units, a decomposed Hangul syllable 3.
+ */
+const UNITS_PER_CHARACTER = 4;
+
 const DEFAULT_MESSAGES: Messages = {
   type: 'Invalid value.',
   required: 'This field is required.',
@@ -51,10 +59,19 @@ export function defineType<A extends object, V = string>(
   const normalize = spec.normalize ?? ((value: string) => value);
   const toValue = spec.value ?? ((value: string) => value as V);
   const argNames = Object.keys(spec.defaults);
+  const defaults = spec.defaults as Readonly<Record<string, unknown>>;
+  const lengthStage = spec.stages.find((stage) => stage.name === 'length');
+  const tooLong = (value: string, max: unknown): boolean =>
+    lengthStage !== undefined &&
+    typeof max === 'number' &&
+    value.length > max * UNITS_PER_CHARACTER;
 
   const factory = (options: FieldOptions<A> = {}): Field<V, A> => {
     const { required = true, when, messages = {}, hint, rule } = options;
     const given = options as Readonly<Record<string, unknown>>;
+    // `view` makes the values: a `max` that depends on them isn't known yet
+    const viewMax =
+      typeof given['max'] === 'number' ? given['max'] : defaults['max'];
 
     const fail = (stage: string, problem: Problem): Invalid => {
       const message =
@@ -71,9 +88,7 @@ export function defineType<A extends object, V = string>(
     };
 
     const args = (values: FormValues = {}): A => {
-      const resolved: Record<string, unknown> = {
-        ...(spec.defaults as Readonly<Record<string, unknown>>),
-      };
+      const resolved: Record<string, unknown> = { ...defaults };
       for (const name of argNames) {
         const value = given[name];
         if (value !== undefined) resolved[name] = resolve(value, values);
@@ -90,7 +105,8 @@ export function defineType<A extends object, V = string>(
       empty: toValue(''),
       view: (raw) => {
         const value = read(raw);
-        return value === undefined ? undefined : toValue(normalize(value));
+        if (value === undefined) return undefined;
+        return toValue(tooLong(value, viewMax) ? value : normalize(value));
       },
       args,
       isActive: (values = {}) => when === undefined || when(values),
@@ -101,6 +117,12 @@ export function defineType<A extends object, V = string>(
         const read_ = read(raw);
         if (read_ === undefined)
           return fail('type', { message: 'Invalid value.' });
+        const resolved = args(values);
+        const over =
+          tooLong(read_, (resolved as { readonly max?: unknown }).max) ?
+            lengthStage?.check(read_, resolved, values)
+          : undefined;
+        if (over !== undefined) return fail('length', over);
         const value = normalize(read_);
         if (value === '')
           return isRequired(values) ?
@@ -109,7 +131,6 @@ export function defineType<A extends object, V = string>(
                 incomplete: true,
               })
             : EMPTY;
-        const resolved = args(values);
         for (const stage of spec.stages) {
           const problem = stage.check(value, resolved, values);
           if (problem !== undefined) return fail(stage.name, problem);
