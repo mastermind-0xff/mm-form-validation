@@ -101,6 +101,53 @@ describe('bindForm: DOM writes', () => {
 });
 
 describe('bindForm: setup', () => {
+  it('looks through the form once, not once per field', () => {
+    const select = vi.spyOn(form, 'querySelectorAll');
+    const elements = vi.spyOn(form, 'elements', 'get');
+    bind();
+    expect(select).toHaveBeenCalledTimes(2);
+    expect(elements).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes the first wrapper and the first line of a name, in document order', () => {
+    document.body.innerHTML = `<form>
+      <div data-field="other"></div>
+      <div id="box-1" data-field="name"><p id="line-1" data-message-for="name"></p></div>
+      <div id="box-2" data-field="name"><p id="line-2" data-message-for="name"></p></div>
+      <input name="name">
+      <input name="email">
+    </form>`;
+    form = document.querySelector('form')!;
+    bindForm(form, defineForm({ name: text(), email: email() })).validate();
+    expect(form.querySelector('#box-1')!.getAttribute('data-state')).toBe(
+      'invalid'
+    );
+    expect(form.querySelector('#box-2')!.hasAttribute('data-state')).toBe(
+      false
+    );
+    expect(form.querySelector('#line-1')!.textContent).not.toBe('');
+    expect(form.querySelector('#line-2')!.textContent).toBe('');
+    // no wrapper, no line: the parent, and a line created there
+    expect(form.getAttribute('data-state')).toBe('invalid');
+    expect(form.querySelector('[data-message-for="email"]')).not.toBeNull();
+  });
+
+  it('keeps all the controls of a name, in document order', () => {
+    document.body.innerHTML = `<form>
+      <input type="radio" name="kind" value="a">
+      <input name="other">
+      <input type="radio" name="kind" value="b" checked>
+    </form>`;
+    form = document.querySelector('form')!;
+    const kinds = defineForm({
+      kind: choice({ options: ['a', 'b'] }),
+      other: text({ required: false }),
+    });
+    expect(bindForm(form, kinds).values()).toEqual({ kind: 'b', other: '' });
+    for (const radio of form.querySelectorAll('[type="radio"]'))
+      expect(radio.getAttribute('aria-describedby')).toMatch(/^fv\d+-kind$/u);
+  });
+
   it('takes over from the browser checks and links the message lines', () => {
     bind();
     expect(form.noValidate).toBe(true);

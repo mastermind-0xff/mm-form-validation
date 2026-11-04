@@ -80,14 +80,17 @@ function isControl(element: Element): element is Control {
   return ['INPUT', 'SELECT', 'TEXTAREA'].includes(element.tagName);
 }
 
+/** The first element for each value of an attribute, in document order. */
 function byAttribute(
   root: ParentNode,
-  attribute: string,
-  name: string
-): HTMLElement | undefined {
-  for (const element of root.querySelectorAll<HTMLElement>(`[${attribute}]`))
-    if (element.getAttribute(attribute) === name) return element;
-  return undefined;
+  attribute: string
+): Map<string, HTMLElement> {
+  const found = new Map<string, HTMLElement>();
+  for (const element of root.querySelectorAll<HTMLElement>(`[${attribute}]`)) {
+    const name = element.getAttribute(attribute) ?? '';
+    if (!found.has(name)) found.set(name, element);
+  }
+  return found;
 }
 
 function setAttribute(
@@ -124,16 +127,24 @@ export function bindForm<F extends FormFields>(
   let focused: Slot | undefined;
 
   form.noValidate = true;
+  // one pass over the form, not one per field: the cost of a large form
+  // grew with the square of its fields
+  const controlsByName = new Map<string, Control[]>();
+  for (const element of form.elements) {
+    if (!isControl(element)) continue;
+    const same = controlsByName.get(element.name);
+    if (same === undefined) controlsByName.set(element.name, [element]);
+    else same.push(element);
+  }
+  const boxes = byAttribute(form, 'data-field');
+  const lines = byAttribute(form, 'data-message-for');
   for (const name of schema.names) {
-    const controls = [...form.elements].filter(
-      (element): element is Control =>
-        isControl(element) && element.name === name
-    );
-    const [first] = controls;
-    if (first === undefined) continue;
-    const box = byAttribute(form, 'data-field', name) ?? first.parentElement;
+    const controls = controlsByName.get(name);
+    const first = controls?.[0];
+    if (controls === undefined || first === undefined) continue;
+    const box = boxes.get(name) ?? first.parentElement;
     if (box === null) continue;
-    let line = byAttribute(form, 'data-message-for', name);
+    let line = lines.get(name);
     if (line === undefined) {
       line = form.ownerDocument.createElement('p');
       line.setAttribute('data-message-for', name);
