@@ -56,7 +56,7 @@ describe('defineType', () => {
       message: 'Max 3.',
     });
     expect(field.view(' ab ')).toBe('AB');
-    expect(field.view(42)).toBeUndefined();
+    expect(field.view(42)).toBe('');
     expect(field.empty).toBe('');
     expect(field.type).toBe('upper');
   });

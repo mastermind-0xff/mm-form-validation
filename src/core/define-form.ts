@@ -34,12 +34,9 @@ export interface Form<F extends FormFields> {
   readonly fields: F;
   readonly names: readonly (keyof F & string)[];
   /** Raw values by field name → what the fields' functions see. */
-  view(raw: Readonly<Record<string, unknown>>): FormValues;
-  /** One field against the raw values of the whole form; `undefined` when inactive. */
-  check(
-    name: keyof F & string,
-    raw: Readonly<Record<string, unknown>>
-  ): FieldResult<unknown> | undefined;
+  view(raw: unknown): FormValues;
+  /** One field against the raw values of the whole form; `undefined` when inactive or unknown. */
+  check(name: keyof F & string, raw: unknown): FieldResult<unknown> | undefined;
   /** The server's check of a whole body (JSON or `Object.fromEntries(formData)`). */
   parse(body: unknown): ParseResult<ValuesOf<F>>;
 }
@@ -56,18 +53,22 @@ export function defineForm<F extends FormFields>(fields: F): Form<F> {
   const own = (raw: Readonly<Record<string, unknown>>, name: string) =>
     Object.hasOwn(raw, name) ? raw[name] : undefined;
 
-  const view = (raw: Readonly<Record<string, unknown>>): FormValues =>
-    Object.fromEntries(
+  const view = (body: unknown): FormValues => {
+    const raw = record(body);
+    return Object.fromEntries(
       names.map((name) => [name, fields[name]?.view(own(raw, name))])
     );
+  };
 
   return {
     fields,
     names,
     view,
-    check: (name, raw) => {
+    check: (name, body) => {
+      const raw = record(body);
       const values = view(raw);
-      const field = fields[name];
+      // a name may come from a client: `constructor` isn't a field
+      const field = own(fields, name) as Field | undefined;
       return field?.isActive(values) ?
           field.check(own(raw, name), values)
         : undefined;

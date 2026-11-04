@@ -60,6 +60,7 @@ export function defineType<A extends object, V = string>(
   const toValue = spec.value ?? ((value: string) => value as V);
   const argNames = Object.keys(spec.defaults);
   const defaults = spec.defaults as Readonly<Record<string, unknown>>;
+  const empty = toValue('');
   const lengthStage = spec.stages.find((stage) => stage.name === 'length');
   const tooLong = (value: string, max: unknown): boolean =>
     lengthStage !== undefined &&
@@ -102,10 +103,11 @@ export function defineType<A extends object, V = string>(
     return {
       type: spec.name,
       options,
-      empty: toValue(''),
+      empty,
       view: (raw) => {
         const value = read(raw);
-        if (value === undefined) return undefined;
+        // the field itself still fails at `type`, when it is active
+        if (value === undefined) return empty;
         return toValue(tooLong(value, viewMax) ? value : normalize(value));
       },
       args,

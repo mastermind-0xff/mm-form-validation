@@ -7,7 +7,10 @@
 /**
  * The values of a form by field name, as the functions of other fields see
  * them (`when`, `required`, dynamic arguments): read and normalized, not yet
- * checked, so possibly invalid. A field that can't be read is `undefined`.
+ * checked, so possibly invalid. A field that can't be read (`null`, an array:
+ * only a hostile client sends those) has its type's empty value, so functions
+ * can rely on the type: `v.city.trim()` doesn't throw on `{ "city": null }`.
+ * A name that isn't a field of the form is `undefined`.
  */
 export type FormValues = Readonly<Record<string, unknown>>;
 
@@ -124,8 +127,8 @@ export interface Field<V = unknown, A = unknown> {
   readonly options: FieldOptions<A>;
   /** The value when the field is empty or inactive ('' or false). */
   readonly empty: V;
-  /** Raw value → what the other fields' functions see (`undefined` if unreadable). */
-  view(raw: unknown): unknown;
+  /** Raw value → what the other fields' functions see (`empty` if unreadable). */
+  view(raw: unknown): V;
   /** The arguments, with functions of the other values resolved. */
   args(values?: FormValues): A;
   isActive(values?: FormValues): boolean;
