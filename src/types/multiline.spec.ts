@@ -17,6 +17,29 @@ describe('multiline', () => {
     ).toEqual({ state: 'valid', value: 'First line\nSecond\nThird' });
   });
 
+  it('drops spaces at the end of each line and keeps them elsewhere', () => {
+    const value = (raw: string) => {
+      const result = multiline().check(raw);
+      return result.state === 'valid' ? result.value : result.state;
+    };
+    expect(value('a  \nb')).toBe('a\nb');
+    expect(value('a b  c')).toBe('a b  c');
+    expect(value('a \t \n  b')).toBe('a\n  b');
+    expect(value('a\u00a0\nb')).toBe('a\nb');
+    // a line separator ends a line too, and is itself white space
+    expect(value('a \u2028 b')).toBe('a\u2028 b');
+    expect(value('a \u2028\u2029 b')).toBe('a\u2029 b');
+    expect(value('a\u2028 b')).toBe('a\u2028 b');
+    expect(value('a \u2028 \nb')).toBe('a\nb');
+  });
+
+  it('stays fast on a long run of spaces that does not end a line', () => {
+    const start = performance.now();
+    const result = multiline().check(`a${' '.repeat(64_000)}x`);
+    expect(performance.now() - start).toBeLessThan(1000);
+    expect(result).toMatchObject({ state: 'invalid', stage: 'length' });
+  });
+
   it('counts lines', () => {
     expect(multiline({ maxLines: 2 }).check('a\nb\nc')).toMatchObject({
       stage: 'lines',

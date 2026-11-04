@@ -30,6 +30,28 @@ const lines: Stage<{ readonly maxLines: number | undefined }> = {
   },
 };
 
+/**
+ * Drops the spaces at the end of each line, in one pass over each run of
+ * spaces. `/[^\S\n]+$/gmu` does the same but starts again at every space of a
+ * run that doesn't end a line: quadratic, and it runs before `length`, so a
+ * 16 KB body took over a second on the server. No lookbehind: Safari before
+ * 16.4 can't parse one. A single space that doesn't end a line isn't matched,
+ * so ordinary text costs what the old regex did.
+ */
+function trimLineEnds(value: string): string {
+  return value.replace(
+    /[^\S\n](?:[^\S\n]+|(?=\n|$))/gu,
+    (run: string, at: number) => {
+      const next = value[at + run.length];
+      if (next === undefined || next === '\n') return '';
+      // U+2028 and U+2029 end a line too, and are white space themselves
+      return run.slice(
+        Math.max(run.lastIndexOf('\u2028'), run.lastIndexOf('\u2029'), 0)
+      );
+    }
+  );
+}
+
 export const multiline = /* @__PURE__ */ defineType<MultilineArgs>({
   name: 'multiline',
   defaults: {
@@ -40,11 +62,7 @@ export const multiline = /* @__PURE__ */ defineType<MultilineArgs>({
     maxLines: undefined,
   },
   normalize: (value) =>
-    value
-      .normalize('NFC')
-      .replace(/\r\n?/gu, '\n')
-      .replace(/[^\S\n]+$/gmu, '')
-      .trim(),
+    trimLineEnds(value.normalize('NFC').replace(/\r\n?/gu, '\n')).trim(),
   stages: [chars, length, contains, lines],
   examples: (args) => {
     const base = textExamples(args);
