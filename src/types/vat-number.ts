@@ -7,8 +7,11 @@
  * elsewhere any 4–20 letters and digits.
  *
  * While the user types, the message shows the shape still missing (user,
- * item 4): "BG and 9 or 10 digits: BG1234XXXXX". In the masks `X` is a digit,
- * `L` a letter, `?` a letter or a digit; other letters are literal.
+ * item 4). A plain run of digits says so in words: "BG and 9 or 10 digits:
+ * BG1234XXXXX". Anything longer to explain shows the masks and what they mean
+ * (plan §12 F5): "NLXXXXXXXXXBXX (X = digit)". In the masks `X` is a digit, `L`
+ * a letter, `?` a letter or a digit, `|` separates alternatives, and anything
+ * else is literal.
  */
 import { defineType } from '../core/define-type.js';
 import { charsStage } from '../core/stages.js';
@@ -26,10 +29,15 @@ type Format = readonly [
   maxLength: number,
 ];
 
-/** EU member states (ISO code) → the VIES format of the part after the prefix. */
+/** EU member states (ISO code) → the VIES format of the part after the prefix: regex, description, masks, longest length. */
 export const EU_VAT_FORMATS: Readonly<Record<string, Format>> = {
   AT: [/^U\d{8}$/u, 'U and 8 digits', 'UXXXXXXXX', 9],
-  BE: [/^[01]\d{9}$/u, '10 digits starting with 0 or 1', '0XXXXXXXXX', 10],
+  BE: [
+    /^[01]\d{9}$/u,
+    '10 digits starting with 0 or 1',
+    '0XXXXXXXXX|1XXXXXXXXX',
+    10,
+  ],
   BG: [/^\d{9,10}$/u, '9 or 10 digits', 'XXXXXXXXX', 10],
   CY: [/^\d{8}[A-Z]$/u, '8 digits and a letter', 'XXXXXXXXL', 9],
   CZ: [/^\d{8,10}$/u, '8 to 10 digits', 'XXXXXXXX', 10],
@@ -55,7 +63,7 @@ export const EU_VAT_FORMATS: Readonly<Record<string, Format>> = {
   IE: [
     /^(?:\d{7}[A-W][A-IW]?|\d[A-Z]\d{5}[A-W])$/u,
     '7 digits and 1 or 2 letters',
-    'XXXXXXXL',
+    'XXXXXXXL|XXXXXXXLL',
     9,
   ],
   IT: [/^\d{11}$/u, '11 digits', 'XXXXXXXXXXX', 11],
@@ -106,8 +114,35 @@ function filled(prefix: string, [, , mask, max]: Format, national: string) {
     : prefix + national + mask.slice(national.length);
 }
 
+const PLAIN_DIGITS = /^\d+(?: (?:or|to) \d+)? digits$/u;
+
+const LEGEND = [
+  ['X', 'X = digit'],
+  ['L', 'L = letter'],
+  ['?', '? = letter or digit'],
+] as const;
+
 function shape(prefix: string, format: Format, national = ''): string {
-  return `${prefix} and ${format[1]}: ${filled(prefix, format, national)}`;
+  const [, description, masks] = format;
+  if (PLAIN_DIGITS.test(description))
+    return `${prefix} and ${description}: ${filled(prefix, format, national)}`;
+  const tails = masks
+    .split('|')
+    .filter(
+      (mask) =>
+        national.length <= mask.length &&
+        Array.from(national).every(
+          (c, i) => 'XL?'.includes(mask.charAt(i)) || mask.charAt(i) === c
+        )
+    )
+    .map((mask) => mask.slice(national.length));
+  const legend = LEGEND.filter(([c]) => tails.some((t) => t.includes(c)))
+    .map(([, text]) => text)
+    .join(', ');
+  // nothing left to fill in, or the value left the shape: words, not the value
+  return legend === '' ?
+      `${prefix} and ${description}`
+    : `${tails.map((tail) => prefix + national + tail).join(' or ')} (${legend})`;
 }
 
 export const vatNumber = /* @__PURE__ */ defineType<VatNumberArgs>({
@@ -169,7 +204,7 @@ export const vatNumber = /* @__PURE__ */ defineType<VatNumberArgs>({
         ],
       };
     const { prefix } = s;
-    const national = sample(s.format[2]);
+    const national = sample(s.format[2].split('|')[0] ?? '');
     const foreign = prefix === 'DE' ? 'AT' : 'DE';
     return {
       valid: [
@@ -187,10 +222,10 @@ export const vatNumber = /* @__PURE__ */ defineType<VatNumberArgs>({
   },
 });
 
-/** A national part that fits a mask: X → digits 1, 2, 3…; L → L; ? → A. */
+/** A national part that fits a mask: X → digits 1, 2, 3…; L and ? → A. */
 export function sample(mask: string): string {
   let digit = 0;
-  return mask.replace(/[X?]/gu, (c) =>
-    c === '?' ? 'A' : String(++digit % 10)
+  return mask.replace(/[XL?]/gu, (c) =>
+    c === 'X' ? String(++digit % 10) : 'A'
   );
 }

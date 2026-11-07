@@ -18,7 +18,9 @@ import type {
   FormFields,
   ValuesOf,
 } from '../core/define-form.js';
-import type { FormValues } from '../core/types.js';
+import { gatesOf, runGates } from '../core/gates.js';
+import type { GateSet } from '../core/gates.js';
+import type { FieldResult, FormValues, Gate } from '../core/types.js';
 
 /**
  * When a value that isn't finished yet (too short, shape incomplete) turns
@@ -34,10 +36,14 @@ import type { FormValues } from '../core/types.js';
 export type Timing = 'leave' | 'pause' | 'input';
 
 export interface BindOptions<T> {
-  /** Default `leave`. */
+  /** Default `pause`. */
   readonly timing?: Timing;
-  /** For `timing: 'pause'`, in ms. Default 1000. */
+  /** For `timing: 'pause'`, and before a gate runs while typing, in ms. Default 1000. */
   readonly pause?: number;
+  /** The gates the schema names, by name. One this lacks is left to the server. */
+  readonly gates?: GateSet;
+  /** The hint while a gate is running. Default "Checking…". */
+  readonly checking?: string;
   /**
    * Called with the parsed values when the submitted form is valid (the
    * native submit is prevented). Without it a valid form submits natively.
@@ -49,9 +55,12 @@ export interface BoundForm {
   /**
    * Checks every field, shows every problem, focuses the first; `true` when
    * the server will accept the form as well. A required field the page has no
-   * control for fails here, and is reported with `console.error`.
+   * control for fails here, and is reported with `console.error`. Gates still
+   * running count as passed: use `validateAsync` to wait for them.
    */
   validate(): boolean;
+  /** `validate`, after running every gate that has no answer yet. */
+  validateAsync(): Promise<boolean>;
   /**
    * The schema's fields as a native submit sends them, by name: strings, a
    * ticked checkbox's `value` (`on` without one). What isn't sent is
@@ -88,6 +97,20 @@ interface Slot {
   /** A message from `showErrors`, until any field changes. */
   server: string | undefined;
   timer: ReturnType<typeof setTimeout> | undefined;
+  readonly gates: readonly Gate[];
+  /** The latest gate run: what it is about, and how it went. */
+  check: GateCheck | undefined;
+}
+
+interface GateCheck {
+  readonly key: string;
+  readonly start: () => void;
+  readonly controller: AbortController;
+  timer: ReturnType<typeof setTimeout> | undefined;
+  /** Settles when the gates have answered; `undefined` until they started. */
+  running: Promise<void> | undefined;
+  /** `undefined` until they answered. `failed` is no verdict: the server decides. */
+  outcome: { readonly refused?: string; readonly failed?: boolean } | undefined;
 }
 
 let forms = 0;
@@ -124,10 +147,21 @@ export function bindForm<F extends FormFields>(
   schema: Form<F>,
   options: BindOptions<ValuesOf<F>> = {}
 ): BoundForm {
-  const { timing = 'leave', pause = 1000, onSubmit } = options;
+  const {
+    timing = 'pause',
+    pause = 1000,
+    onSubmit,
+    gates,
+    checking = 'Checking…',
+  } = options;
   const id = ++forms;
   const slots: Slot[] = [];
   let focused: Slot | undefined;
+  /** A submit is waiting for gates: another click doesn't start a second one. */
+  let settling = false;
+  /** The gates have passed: the next submit event goes through natively. */
+  let release = false;
+  let destroyed = false;
 
   form.noValidate = true;
   // one pass over the form, not one per field: the cost of a large form
@@ -173,6 +207,8 @@ export function bindForm<F extends FormFields>(
       shown: false,
       server: undefined,
       timer: undefined,
+      gates: gatesOf(schema.fields[name] as FormFields[string], gates),
+      check: undefined,
     });
   }
 
@@ -181,6 +217,67 @@ export function bindForm<F extends FormFields>(
     // disabled controls and unticked boxes send nothing, the last of a name wins
     const sent = new Map(new FormData(form));
     return Object.fromEntries(slots.map(({ name }) => [name, sent.get(name)]));
+  };
+
+  /** Runs the gates of a slot now, if they are still waiting for the pause. */
+  const startCheck = (slot: Slot) => {
+    if (slot.check?.outcome === undefined) slot.check?.start();
+  };
+
+  const dropCheck = (slot: Slot) => {
+    if (slot.check === undefined) return;
+    clearTimeout(slot.check.timer);
+    slot.check.controller.abort();
+    slot.check = undefined;
+  };
+
+  /** The gates' verdict on a value that is otherwise valid; starts them if needed. */
+  const gateCheck = (
+    slot: Slot,
+    value: unknown,
+    view: FormValues
+  ): GateCheck => {
+    const field = schema.fields[slot.name] as FormFields[string];
+    const args = field.args(view);
+    const key = JSON.stringify([value, args]);
+    if (slot.check?.key === key) return slot.check;
+    dropCheck(slot);
+    const controller = new AbortController();
+    const check: GateCheck = {
+      key,
+      controller,
+      timer: undefined,
+      running: undefined,
+      outcome: undefined,
+      start: () => {
+        clearTimeout(check.timer);
+        check.running ??= runGates(slot.gates, String(value), {
+          values: view,
+          args,
+          signal: controller.signal,
+        }).then(
+          (refusal) => {
+            if (slot.check !== check) return;
+            check.outcome = refusal ? { refused: refusal.message } : {};
+            if (refusal?.retryAfter !== undefined)
+              check.timer = setTimeout(() => {
+                dropCheck(slot);
+                update();
+              }, refusal.retryAfter);
+            update();
+          },
+          () => {
+            if (slot.check !== check) return;
+            check.outcome = { failed: true };
+            update();
+          }
+        );
+      },
+    };
+    slot.check = check;
+    if (focused === slot) check.timer = setTimeout(check.start, pause);
+    else check.start();
+    return check;
   };
 
   const render = (
@@ -194,8 +291,21 @@ export function bindForm<F extends FormFields>(
     let state: 'valid' | 'invalid' | undefined;
     let kind: 'hint' | 'error' | undefined;
     let message = '';
+    let pending = false;
     if (active) {
-      const result = field.check(raw[slot.name], view);
+      let result: FieldResult<unknown> = field.check(raw[slot.name], view);
+      if (result.state === 'valid' && slot.gates.length > 0 && slot.touched) {
+        const { outcome } = gateCheck(slot, result.value, view);
+        if (outcome?.refused !== undefined)
+          result = {
+            state: 'invalid',
+            stage: 'gate',
+            message: outcome.refused,
+            incomplete: false,
+          };
+        else if (outcome === undefined) pending = true;
+        else if (outcome.failed) result = { state: 'empty' };
+      } else dropCheck(slot);
       if (slot.server !== undefined) {
         state = 'invalid';
         message = slot.server;
@@ -205,6 +315,10 @@ export function bindForm<F extends FormFields>(
         // an empty field says nothing until it is left
         if (state === 'invalid' || result.stage !== 'required')
           message = result.message;
+      }
+      if (pending && slot.server === undefined) {
+        state = undefined;
+        message = checking;
       }
       if (state === 'invalid') kind = 'error';
       else if (!message && focused === slot && result.state !== 'valid')
@@ -226,11 +340,11 @@ export function bindForm<F extends FormFields>(
     if (slot.line.textContent !== message) slot.line.textContent = message;
   };
 
-  const update = () => {
+  function update(): void {
     const raw = values();
     const view = schema.view(raw);
     for (const slot of slots) render(slot, raw, view);
-  };
+  }
 
   const slotOf = (target: EventTarget | null) =>
     slots.find((slot) => slot.controls.some((control) => control === target));
@@ -261,6 +375,7 @@ export function bindForm<F extends FormFields>(
         if (focused === slot) focused = undefined;
         slot.shown = true;
         clearTimeout(slot.timer);
+        startCheck(slot);
         break;
       case 'change':
         slot.touched = slot.shown = true;
@@ -286,7 +401,7 @@ export function bindForm<F extends FormFields>(
     for (const slot of slots) slot.touched = slot.shown = true;
     update();
     focusFirstError();
-    const result = schema.parse(values());
+    const result = schema.parse(values(), { skipGates: true });
     if (!result.ok) {
       // a field the page has no control for: no line to show it in, and without
       // this a submit button that does nothing and says nothing
@@ -298,15 +413,53 @@ export function bindForm<F extends FormFields>(
     return result.ok && !slots.some(isRed) ? result : undefined;
   };
 
+  /** Runs now every gate that hasn't answered, and waits for them. */
+  const settle = async () => {
+    update();
+    await Promise.all(
+      slots.flatMap((slot) => {
+        startCheck(slot);
+        return slot.check?.running ?? [];
+      })
+    );
+  };
+
+  const hasGates = slots.some((slot) => slot.gates.length > 0);
+
   const submit = (event: Event) => {
+    if (release) {
+      release = false;
+      return;
+    }
+    if (settling) {
+      event.preventDefault();
+      return;
+    }
     const result = check();
     if (result === undefined) {
       event.preventDefault();
       return;
     }
-    if (onSubmit === undefined) return;
+    if (!hasGates) {
+      if (onSubmit === undefined) return;
+      event.preventDefault();
+      onSubmit(result.values, event);
+      return;
+    }
     event.preventDefault();
-    onSubmit(result.values, event);
+    settling = true;
+    void settle().then(() => {
+      settling = false;
+      if (destroyed) return;
+      const final = check();
+      if (final === undefined) return;
+      if (onSubmit !== undefined) {
+        onSubmit(final.values, event);
+        return;
+      }
+      release = true;
+      form.requestSubmit((event as SubmitEvent).submitter);
+    });
   };
 
   const events = ['focusin', 'focusout', 'input', 'change'] as const;
@@ -319,6 +472,11 @@ export function bindForm<F extends FormFields>(
 
   return {
     validate: () => check() !== undefined,
+    validateAsync: async () => {
+      if (check() === undefined) return false;
+      await settle();
+      return check() !== undefined;
+    },
     values,
     showErrors: (errors) => {
       // an answer without `errors` (a 413, a 429) has nothing to show
@@ -341,11 +499,16 @@ export function bindForm<F extends FormFields>(
         clearTimeout(slot.timer);
         slot.touched = slot.shown = false;
         slot.server = undefined;
+        dropCheck(slot);
       }
       update();
     },
     destroy: () => {
-      for (const slot of slots) clearTimeout(slot.timer);
+      destroyed = true;
+      for (const slot of slots) {
+        clearTimeout(slot.timer);
+        dropCheck(slot);
+      }
       for (const type of events) form.removeEventListener(type, onEvent);
       form.removeEventListener('submit', submit);
     },

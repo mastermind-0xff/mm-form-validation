@@ -1,24 +1,26 @@
 /**
  * `select` (a drop-down) and `choice` (a radio group): the value must be one
- * of the options, checked by value, not by index (plan §12 F2). The empty
- * value ('', a "Choose…" option) is "not chosen".
+ * of the options, checked by value, not by position in the list (plan §12 F2).
+ * A value can be a database id: `{ value: 17, label: 'Bulgaria' }` shows the
+ * name and stores '17', so the list has one source and the rows hold the id.
+ * The empty value ('', a "Choose…" option) is "not chosen".
  */
 import { defineType, preset, readScalar } from '../core/define-type.js';
 
 /** An option: its value, or its value and label. */
 export type Option =
-  string | { readonly value: string; readonly label: string };
+  string | number | { readonly value: string | number; readonly label: string };
 
 export interface SelectArgs {
   readonly options: readonly Option[];
 }
 
 export function optionValue(option: Option): string {
-  return typeof option === 'string' ? option : option.value;
+  return String(typeof option === 'object' ? option.value : option);
 }
 
 export function optionLabel(option: Option): string {
-  return typeof option === 'string' ? option : option.label;
+  return typeof option === 'object' ? option.label : String(option);
 }
 
 export const select = /* @__PURE__ */ defineType<SelectArgs>({

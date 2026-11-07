@@ -28,6 +28,8 @@ export {
   pattern,
   plural,
 } from './core/stages.js';
+export { parseAsync } from './core/gates.js';
+export type { GateSet, ParseAsyncOptions } from './core/gates.js';
 export type {
   CommonOptions,
   Details,
@@ -39,6 +41,10 @@ export type {
   FieldResult,
   FieldType,
   FormValues,
+  Gate,
+  GateAnswer,
+  GateContext,
+  GateRefusal,
   Invalid,
   Message,
   Messages,

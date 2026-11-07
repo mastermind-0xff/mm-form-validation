@@ -14,9 +14,11 @@ describe('vatNumber', () => {
     it(c.name, c.run);
 
   it.each(EU)('%s: the mask sample fits the format', (country) => {
-    const [national, , mask, max] = EU_VAT_FORMATS[country]!;
-    expect(national.test(sample(mask))).toBe(true);
-    expect(mask.length).toBeLessThanOrEqual(max);
+    const [national, , masks, max] = EU_VAT_FORMATS[country]!;
+    for (const mask of masks.split('|')) {
+      expect(national.test(sample(mask))).toBe(true);
+      expect(mask.length).toBeLessThanOrEqual(max);
+    }
   });
 
   it('adds the prefix, drops spaces, dots and dashes', () => {
@@ -49,6 +51,37 @@ describe('vatNumber', () => {
     });
   });
 
+  it.each([
+    ['AT', 'ATUXXXXXXXX (X = digit)'],
+    ['BE', 'BE0XXXXXXXXX or BE1XXXXXXXXX (X = digit)'],
+    ['CY', 'CYXXXXXXXXL (X = digit, L = letter)'],
+    ['ES', 'ES?XXXXXXX? (X = digit, ? = letter or digit)'],
+    ['FR', 'FR??XXXXXXXXX (X = digit, ? = letter or digit)'],
+    ['IE', 'IEXXXXXXXL or IEXXXXXXXLL (X = digit, L = letter)'],
+    ['NL', 'NLXXXXXXXXXBXX (X = digit)'],
+    ['SE', 'SEXXXXXXXXXX01 (X = digit)'],
+    ['DE', 'DE and 9 digits: DEXXXXXXXXX'],
+    ['LT', 'LT and 9 or 12 digits: LTXXXXXXXXX'],
+  ])('%s: the hint says what its marks mean', (country, hint) => {
+    expect(vatNumber({ country }).hint()).toBe(hint);
+  });
+
+  it('follows the alternative that fits what was typed', () => {
+    expect(vatNumber({ country: 'BE' }).check('BE12')).toMatchObject({
+      message: 'BE12XXXXXXXX (X = digit)',
+    });
+  });
+
+  it('uses words when no mask fits, and never echoes a long value', () => {
+    const { message } = vatNumber({ country: 'NL' }).check(
+      `NL${'1'.repeat(40)}`
+    ) as { message: string };
+    expect(message).toBe('NL and 9 digits, B and 2 digits');
+    expect(vatNumber({ country: 'NL' }).check('NL123456789X12')).toMatchObject({
+      message: 'NL and 9 digits, B and 2 digits',
+    });
+  });
+
   it('shows the shape still missing while typing', () => {
     const bg = vatNumber({ country: 'BG' });
     expect(bg.hint()).toBe('BG and 9 or 10 digits: BGXXXXXXXXX');
@@ -62,7 +95,7 @@ describe('vatNumber', () => {
       incomplete: false,
     });
     expect(vatNumber({ country: 'NL' }).check('NL12345')).toMatchObject({
-      message: 'NL and 9 digits, B and 2 digits: NL12345XXXXBXX',
+      message: 'NL12345XXXXBXX (X = digit)',
     });
   });
 

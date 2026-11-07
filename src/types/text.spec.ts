@@ -62,6 +62,31 @@ describe('text', () => {
   });
 });
 
+describe('names and addresses from anywhere (plan §12 F3)', () => {
+  it.each([
+    '山田太郎',
+    'ジョン・スミス',
+    '约翰·史密斯',
+    'Тихомир',
+    '김민수',
+    'Nguyễn',
+  ])('personName: %s', (name) => {
+    expect(personName().check(name).state).toBe('valid');
+  });
+
+  it.each(['東京都', '北京市（朝阳区）', 'Sofia 1000'])('place: %s', (name) => {
+    expect(place().check(name).state).toBe('valid');
+  });
+
+  it.each([
+    '〒100-0001 千代田区千代田１−１',
+    '朝阳区，建国路８８号',
+    'ул. Витоша 1, ап. 4',
+  ])('streetAddress: %s', (address) => {
+    expect(streetAddress().check(address).state).toBe('valid');
+  });
+});
+
 describe('personName', () => {
   for (const c of typeContract(personName, [{}, { max: 10 }, { min: 2 }]))
     it(c.name, c.run);

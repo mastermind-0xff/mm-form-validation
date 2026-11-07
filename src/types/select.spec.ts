@@ -35,6 +35,20 @@ describe('select', () => {
     expect(field.check('Sofia', { country: 'DE' }).state).toBe('invalid');
   });
 
+  it('takes database ids as values and stores them as strings', () => {
+    const field = select({
+      options: [
+        { value: 17, label: 'Bulgaria' },
+        { value: 276, label: 'Germany' },
+      ],
+    });
+    expect(field.check('17')).toEqual({ state: 'valid', value: '17' });
+    expect(field.check(276)).toEqual({ state: 'valid', value: '276' });
+    expect(field.check('Bulgaria').state).toBe('invalid');
+    expect(optionValue(17)).toBe('17');
+    expect(optionLabel(17)).toBe('17');
+  });
+
   it('option helpers', () => {
     expect(optionValue('a')).toBe('a');
     expect(optionLabel('a')).toBe('a');

@@ -9,14 +9,15 @@ const typescriptPlugin = () =>
     outDir: undefined,
   });
 
-// no dependencies: the core runs in browsers and in Node as it is. Four
-// entries, also in package.json "exports": the core, the browser binding, the
-// test helpers and the CSS generator
+// no dependencies: the core runs in browsers and in Node as it is. The entries,
+// also in package.json "exports": the core, the browser binding, the test
+// helpers, the CSS generator and the ready-made gates
 const input = [
   'src/index.ts',
   'src/dom/index.ts',
   'src/testing/index.ts',
   'src/css/index.ts',
+  'src/gates/index.ts',
 ];
 
 export default [

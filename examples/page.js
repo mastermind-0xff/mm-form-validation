@@ -4,6 +4,7 @@
  * answer. The look and the timing come from the designer panel (designer.js).
  */
 import { bindForm } from '../dist/esm/dom/index.js';
+import { vatGate } from '../dist/esm/gates/index.js';
 import { optionLabel, optionValue } from '../dist/esm/index.js';
 import { startDesigner } from './designer.js';
 import { countries, forms } from './forms.js';
@@ -48,6 +49,9 @@ async function send(name, values, bound, output) {
 
 const bound = new Map();
 
+// outside bindAll: changing the timing doesn't reset the count of checks
+const gates = { vies: vatGate() };
+
 function bindAll(timing) {
   for (const binding of bound.values()) binding.destroy();
   for (const form of document.querySelectorAll('form[data-schema]')) {
@@ -55,6 +59,7 @@ function bindAll(timing) {
     const output = form.querySelector('output');
     const binding = bindForm(form, forms[name], {
       timing,
+      gates,
       onSubmit: (values) => send(name, values, binding, output),
     });
     bound.set(form, binding);

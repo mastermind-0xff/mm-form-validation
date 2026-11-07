@@ -99,6 +99,38 @@ export interface TypeSpec<A extends object, V> {
   readonly examples: (args: A) => Examples;
 }
 
+/** What a gate knows besides the value. */
+export interface GateContext {
+  /** The other values of the form, as `when` and `required` see them. */
+  readonly values: FormValues;
+  /** The field's arguments, resolved (`vatNumber`: its `country`). */
+  readonly args: unknown;
+  /** In the browser: aborted once the value has changed and the answer is moot. */
+  readonly signal?: AbortSignal;
+}
+
+export interface GateRefusal {
+  readonly message: string;
+  /**
+   * The answer holds for now only (a cooldown, a service that is down). In ms: the
+   * browser doesn't remember it and asks again after that long.
+   */
+  readonly retryAfter?: number;
+}
+
+/** A message refuses the value; nothing lets it pass. */
+export type GateAnswer = string | GateRefusal | null | undefined;
+
+/**
+ * A check of your own, after the type's stages (stage `gate`), sync or async.
+ * It gets the final value as a string. It runs only when the value is otherwise
+ * valid and not empty, so it can cost something.
+ */
+export type Gate = (
+  value: string,
+  context: GateContext
+) => GateAnswer | Promise<GateAnswer>;
+
 /** Options every field accepts, next to its type's arguments. */
 export interface CommonOptions {
   /** Default `true`. A function makes it depend on the other values. */
@@ -114,6 +146,12 @@ export interface CommonOptions {
   readonly hint?: Dynamic<string>;
   /** An extra check after the type's stages (stage `rule`): a message when it fails. */
   readonly rule?: (value: string, values: FormValues) => string | undefined;
+  /**
+   * Your own checks, run in order until one refuses. A function runs on both
+   * sides. A name is implemented per side, so server code stays out of the page:
+   * `parseAsync` throws when the server doesn't provide one, `bindForm` skips it.
+   */
+  readonly gates?: readonly (Gate | string)[];
 }
 
 /** A type's arguments, each also allowed as a function of the other values. */

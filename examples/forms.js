@@ -91,6 +91,8 @@ export const billing = defineForm({
     required: false,
     when: isCompany,
     country: (values) => String(values.country ?? ''),
+    // each side has its own: the page asks this server, the server asks VIES
+    gates: ['vies'],
   }),
   city: place({ required: isCompany }),
   address1: streetAddress({ required: isCompany }),

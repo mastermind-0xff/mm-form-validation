@@ -1,12 +1,16 @@
 /**
  * The example pages and their server half (`npm run examples`): serves the
  * pages, the built package (dist) and its sources (for the source maps), and
- * answers `POST /api/<form>` with the same schema's `parse` the page uses.
+ * answers `POST /api/<form>` with the same schema the page uses, and
+ * `POST /api/vat-check` for the page's VAT gate. Set `VIES_STUB=1` to stay off the
+ * real VIES: a number ending in 00 isn't registered, in 99 the service is down.
  * Development only: listens on 127.0.0.1.
  */
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
+import { answerVatCheck, viesGate } from '../dist/esm/gates/index.js';
+import { parseAsync } from '../dist/esm/index.js';
 import { forms } from './forms.js';
 
 const root = resolve(import.meta.dirname, '..');
@@ -20,6 +24,14 @@ const types = {
   '.ts': 'text/plain; charset=utf-8',
   '.svg': 'image/svg+xml',
 };
+
+async function viesStub(_url, { body }) {
+  const { vatNumber } = JSON.parse(body);
+  if (vatNumber.endsWith('99')) return new Response('{}', { status: 503 });
+  return Response.json({ valid: !vatNumber.endsWith('00') });
+}
+
+const vies = viesGate(process.env.VIES_STUB ? { fetch: viesStub } : {});
 
 function reply(res, status, body, type = 'application/json; charset=utf-8') {
   res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store' });
@@ -48,6 +60,19 @@ const server = createServer(async (req, res) => {
   } catch {
     return reply(res, 400, 'Bad request', 'text/plain');
   }
+  if (url.pathname === '/api/vat-check' && req.method === 'POST') {
+    let body;
+    try {
+      body = await readJson(req);
+    } catch {
+      return reply(res, 400, { error: 'invalid_json' });
+    }
+    return reply(
+      res,
+      200,
+      await answerVatCheck(vies, body, req.socket.remoteAddress ?? '')
+    );
+  }
   if (url.pathname.startsWith('/api/')) {
     const form =
       Object.hasOwn(forms, url.pathname.slice(5)) ?
@@ -62,7 +87,9 @@ const server = createServer(async (req, res) => {
       return reply(res, 400, { error: 'invalid_json' });
     }
     // the same check the page ran: a value the page accepts passes here too
-    const result = form.parse(body);
+    const result = await parseAsync(form, body, {
+      gates: { vies: vies.for(req.socket.remoteAddress ?? '') },
+    });
     return reply(res, result.ok ? 200 : 400, result);
   }
   if (url.pathname === '/') {

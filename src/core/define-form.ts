@@ -1,7 +1,7 @@
 /**
  * `defineForm` groups fields into the schema both sides import (plan §4.1):
- * the server calls `parse`, the browser binding checks one field at a time
- * against the values of the whole form.
+ * the server calls `parse` (with gates, `parseAsync` in gates.ts), the browser binding checks
+ * one field at a time against the values of the whole form.
  */
 import type { Field, FieldResult, FormValues } from './types.js';
 
@@ -37,8 +37,15 @@ export interface Form<F extends FormFields> {
   view(raw: unknown): FormValues;
   /** One field against the raw values of the whole form; `undefined` when inactive or unknown. */
   check(name: keyof F & string, raw: unknown): FieldResult<unknown> | undefined;
-  /** The server's check of a whole body (JSON or `Object.fromEntries(formData)`). */
-  parse(body: unknown): ParseResult<ValuesOf<F>>;
+  /**
+   * The server's check of a whole body (JSON or `Object.fromEntries(formData)`).
+   * A form with gates must use `parseAsync`: this throws rather than skip them,
+   * unless `skipGates` says that is meant (the browser's first pass).
+   */
+  parse(
+    body: unknown,
+    options?: { readonly skipGates?: boolean }
+  ): ParseResult<ValuesOf<F>>;
 }
 
 /** Own properties of a plain object; anything else reads as no values at all. */
@@ -60,6 +67,33 @@ export function defineForm<F extends FormFields>(fields: F): Form<F> {
     );
   };
 
+  const parse = (body: unknown): ParseResult<ValuesOf<F>> => {
+    const raw = record(body);
+    const values = view(raw);
+    const parsed: Record<string, unknown> = {};
+    const errors: FieldError[] = [];
+    for (const name of names) {
+      const field = fields[name];
+      if (field === undefined) continue;
+      parsed[name] = field.empty;
+      if (!field.isActive(values)) continue;
+      const result = field.check(own(raw, name), values);
+      if (result.state === 'valid') parsed[name] = result.value;
+      else if (result.state === 'invalid')
+        errors.push({
+          field: name,
+          stage: result.stage,
+          message: result.message,
+        });
+    }
+    const first = errors[0];
+    return first === undefined ?
+        { ok: true, values: parsed as ValuesOf<F> }
+      : { ok: false, errors, first };
+  };
+
+  const named = (field: Field | undefined) => field?.options.gates ?? [];
+
   return {
     fields,
     names,
@@ -73,29 +107,10 @@ export function defineForm<F extends FormFields>(fields: F): Form<F> {
           field.check(own(raw, name), values)
         : undefined;
     },
-    parse: (body) => {
-      const raw = record(body);
-      const values = view(raw);
-      const parsed: Record<string, unknown> = {};
-      const errors: FieldError[] = [];
-      for (const name of names) {
-        const field = fields[name];
-        if (field === undefined) continue;
-        parsed[name] = field.empty;
-        if (!field.isActive(values)) continue;
-        const result = field.check(own(raw, name), values);
-        if (result.state === 'valid') parsed[name] = result.value;
-        else if (result.state === 'invalid')
-          errors.push({
-            field: name,
-            stage: result.stage,
-            message: result.message,
-          });
-      }
-      const first = errors[0];
-      return first === undefined ?
-          { ok: true, values: parsed as ValuesOf<F> }
-        : { ok: false, errors, first };
+    parse: (body, options) => {
+      if (!options?.skipGates && names.some((n) => named(fields[n]).length > 0))
+        throw new Error('This form has gates: use parseAsync.');
+      return parse(body);
     },
   };
 }
