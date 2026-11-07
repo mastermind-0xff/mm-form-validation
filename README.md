@@ -15,7 +15,25 @@ is never refused by the server, and the other way round.
   valid and invalid values.
 - Every type passes the same contract built from its examples.
 
-Work in progress: nothing is published yet.
+Work in progress: nothing is published yet. Until it is, link a local copy, and build
+it first, because `dist` isn't in git:
+
+```sh
+npm install && npm run build                 # here, and again after every change here
+npm install file:../path/to/mm-form-validation   # in the project that uses it
+```
+
+| Entry                              | Holds                                                                |
+| ---------------------------------- | -------------------------------------------------------------------- |
+| `@mmutils/form-validation`         | `defineForm`, `defineType`, `parseAsync`, the types                  |
+| `@mmutils/form-validation/dom`     | `bindForm`, for the browser                                          |
+| `@mmutils/form-validation/gates`   | `limitChecks`, `remoteGate`, the VAT check                           |
+| `@mmutils/form-validation/testing` | `typeContract`, for any test runner                                  |
+| `@mmutils/form-validation/css`     | the look as settings and the CSS generator                           |
+| `@mmutils/form-validation/looks/*` | `edge.css`, `underline.css`, `outline.css`, `icon.css`, `filled.css` |
+
+Not built yet: the types `integer`, `code` and `honeypot`, generated test cases for a
+whole form, and helpers that write or check a form's markup.
 
 ## A form
 
@@ -60,6 +78,115 @@ countries has one source and the rows store the id:
 ```js
 select({ options: countries.map((c) => ({ value: c.id, label: c.name })) });
 // shows the name, and parse gives '17' as a string
+```
+
+### The markup
+
+The server renders the fields. The binding finds a control by `name`, its wrapper by
+`data-field` and its message line by `data-message-for`. The classes belong to the
+generated CSS: `fv-box` marks what shows the state.
+
+```html
+<div class="fv-field" data-field="email">
+  <label for="email">E-mail</label>
+  <input class="fv-box" id="email" name="email" type="email" />
+  <p class="fv-message" data-message-for="email"></p>
+</div>
+
+<fieldset class="fv-field" data-field="kind">
+  <legend>Billing as</legend>
+  <div class="fv-options fv-box">
+    <label class="fv-option">
+      <input type="radio" name="kind" value="0" /> A person
+    </label>
+    <label class="fv-option">
+      <input type="radio" name="kind" value="1" /> A company
+    </label>
+  </div>
+  <p class="fv-message" data-message-for="kind"></p>
+</fieldset>
+
+<div class="fv-field" data-field="consent">
+  <label class="fv-option fv-box">
+    <input type="checkbox" name="consent" /> I accept
+  </label>
+  <p class="fv-message" data-message-for="consent"></p>
+</div>
+```
+
+Send the empty message lines and `hidden` on fields that start inactive, or the page
+shifts when the script runs. The binding sets `required` from the schema when it runs;
+write it in the HTML too if the asterisk must show from the first paint.
+
+### Field types
+
+| Type            | Value   | Arguments (defaults)                                               |
+| --------------- | ------- | ------------------------------------------------------------------ |
+| `text`          | string  | `min` 1, `max` 255, `chars` `'text'`, `contains`                   |
+| `personName`    | string  | as `text`: `max` 100, `chars` `'name'`, `contains` a letter        |
+| `place`         | string  | as `text`: `max` 100, `chars` `'place'`, `contains` a letter       |
+| `streetAddress` | string  | as `text`: `min` 3, `chars` `'address'`, `contains` a letter       |
+| `multiline`     | string  | `min` 1, `max` 5000, `chars` `'multiline'`, `contains`, `maxLines` |
+| `select`        | string  | `options`: values, or `{ value, label }`                           |
+| `choice`        | string  | `options`, for radio groups                                        |
+| `checkbox`      | boolean | none; required means it must be ticked                             |
+| `email`         | string  | `min` 1, `max` 254; lower-cased                                    |
+| `password`      | string  | `min` 8, `max` 128; never trimmed                                  |
+| `confirm`       | string  | `of`: the field to match, default `'password'`                     |
+| `vatNumber`     | string  | `country`: an ISO code; upper-cased, with its prefix               |
+
+Lengths count code points, so an emoji counts once. Character sets: `text`, `multiline`, `name`, `place`, `address`, `digits`, `alnum`, `code`.
+
+Every field also takes:
+
+| Option     | Default | What it does                                                          |
+| ---------- | ------- | --------------------------------------------------------------------- |
+| `required` | `true`  | `false`, or a function of the other values                            |
+| `when`     | always  | a function of the other values; false: unchecked, hidden, empty value |
+| `messages` |         | by stage: a string, or a function of the stage's details              |
+| `hint`     |         | shown while the field is focused and empty                            |
+| `rule`     |         | `(value, values) => message or undefined`, one more synchronous check |
+| `gates`    |         | checks of your own, below                                             |
+
+Any argument can be a function of the other values too. Those functions see the values
+read and normalized, not yet checked.
+
+### What the binding returns
+
+`bindForm(form, schema, options)` takes `timing` (`'pause'` by default, `'leave'`,
+`'input'`), `pause` (1000 ms), `gates`, `checking` and `onSubmit`. Without `onSubmit`, a
+valid form submits natively. It returns:
+
+| Method             | Does                                                      |
+| ------------------ | --------------------------------------------------------- |
+| `validate()`       | checks everything, shows every problem, focuses the first |
+| `validateAsync()`  | the same, after waiting for the gates                     |
+| `values()`         | the raw values, as a native submit sends them             |
+| `showErrors(errs)` | shows the server's `errors` in the same lines             |
+| `reset()`          | back to neutral                                           |
+| `destroy()`        | removes the listeners and timers                          |
+
+### Testing and new types
+
+A type is an object with its defaults, stages and examples. `typeContract` turns the
+examples into test cases for any runner:
+
+```js
+import { contains, defineType } from '@mmutils/form-validation';
+import { typeContract } from '@mmutils/form-validation/testing';
+
+export const word = defineType({
+  name: 'word',
+  defaults: { contains: 'letter' },
+  normalize: (value) => value.trim(),
+  stages: [contains],
+  examples: () => ({
+    valid: ['abc'],
+    invalid: [{ value: '123', stage: 'contains' }],
+  }),
+});
+
+for (const c of typeContract(word, [{}])) test(c.name, c.run);
 ```
 
 ## Checks of your own: gates
@@ -153,6 +280,10 @@ bindForm(element, billing, { gates: { vies: vatGate() }, onSubmit });
 | Same number again | from memory, for an hour                 | from memory, for a day (`remember`)                |
 | Over the limit    | "Try again in 25 s", then asks by itself | refuses the form: never saved unchecked            |
 | VIES is down      | shows the server's answer                | refuses, "try again"                               |
+
+`country` must give an ISO code (`BG`). Anything else, like the name `Bulgaria`, counts
+as outside the EU: only a loose shape is checked and VIES is never asked. If your select
+holds names, map them to codes in the function.
 
 Numbers outside the EU pass, as VIES doesn't know them. VIES is often down for one
 country or another; to take the order anyway and check later, give

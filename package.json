@@ -1,7 +1,7 @@
 {
   "name": "@mmutils/form-validation",
   "version": "0.0.0",
-  "description": "One field schema for the browser and the server: typed fields (text, multiline, select, e-mail…) checked in stages with the same code on both sides, live messages in the form, and test cases generated for every form.",
+  "description": "One field schema for the browser and the server: typed fields (text, multiline, select, e-mail…) checked in stages with the same code on both sides, live messages in the form, and a test contract for every field type.",
   "keywords": [
     "form",
     "validation",
