@@ -4,6 +4,15 @@
 
 Nothing released yet. The plan is in `.claude/plan.md` (local).
 
+- New types: `code` (discount codes, tokens: trimmed, keeps the case unless `upper`),
+  `integer` (a number between `min` and `max`), `honeypot` (never refuses: the value
+  says whether a bot filled it).
+- `fieldAttributes(field, values)`: what to write on a control, from the schema.
+- `./testing`: `formCases(form, samples)`, the cases of a whole form.
+- `typeContract` reads `max` as a length only for a type with a `length` stage.
+- `name`, `place` and `address` accept `´` and `` ` ``, as people type an apostrophe
+  (Sant´Angelo, L`Aquila).
+
 - Gates: `gates` on any field, functions or names each side implements, run one
   after another after the stages (stage `gate`). `parseAsync(form, body, { gates })`
   on the server; `form.parse` throws on a form with gates. In `bindForm`: the option

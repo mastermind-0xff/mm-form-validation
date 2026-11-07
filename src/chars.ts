@@ -25,14 +25,14 @@ export const charSets = {
     `${FREE_TEXT}|[\\x00-\\x08\\x0B-\\x1F\\x7F-\\x9F]`,
     'u'
   ),
-  /** Letters (any script, no fillers), combining marks, space, `'` `’` `-` `.`, the middle dots of Japanese and Chinese names (`・` `·`) */
-  name: /[^\p{L}\p{M} '’\-.·・]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
+  /** Letters (any script, no fillers), combining marks, space, `'` `’` `´` `` ` `` `-` `.`, the middle dots of Japanese and Chinese names (`・` `·`) */
+  name: /[^\p{L}\p{M} '’´`\-.·・]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
   /** `name` plus digits, `(` `)` `,` `/`, and their CJK forms `（` `）` `，` `、` */
   place:
-    /[^\p{L}\p{M}\p{N} '’\-.·・\(\),\/（），、]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
+    /[^\p{L}\p{M}\p{N} '’´`\-.·・\(\),\/（），、]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
   /** `place` plus `#` `№` `:` `&` `"`, and Japanese `〒` `−` `－` */
   address:
-    /[^\p{L}\p{M}\p{N} '’\-.·・\(\),\/（），、#№:&"〒−－]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
+    /[^\p{L}\p{M}\p{N} '’´`\-.·・\(\),\/（），、#№:&"〒−－]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
   digits: /[^0-9]/u,
   alnum: /[^A-Za-z0-9]/u,
   /** Letters and digits (ASCII), `-` and `_` */

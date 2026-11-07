@@ -100,6 +100,14 @@ describe('charSets', () => {
   });
 });
 
+describe('apostrophes as people type them', () => {
+  it('passes in names, places and addresses', () => {
+    for (const set of ['name', 'place', 'address'] as const)
+      for (const value of ["D'Angelo", 'D’Angelo', 'Sant´Angelo', 'L`Aquila'])
+        expect(badChar(value, set)).toBeUndefined();
+  });
+});
+
 describe('nfc', () => {
   const marks = (n: number) => '\u0301\u0323'.repeat(n / 2);
   const sets = ['text', 'multiline', 'name', 'place', 'address'] as const;

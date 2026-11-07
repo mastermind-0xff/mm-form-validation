@@ -145,6 +145,7 @@ export function typeContract<A extends object, V>(
     });
 
     const max = (field.args(values) as { readonly max?: unknown }).max;
+    // only as a length: an `integer`'s `max` is a value
     if (
       typeof max === 'number' &&
       type.spec.stages.some((stage) => stage.name === 'length')
@@ -157,7 +158,10 @@ export function typeContract<A extends object, V>(
         );
         assertPlain(result.message);
       });
-    if (typeof max === 'number')
+    if (
+      typeof max === 'number' &&
+      type.spec.stages.some((stage) => stage.name === 'length')
+    )
       add(`examples reach max ${max} and ${max + 1}`, () => {
         const length = (value: unknown) =>
           typeof value === 'string' ? codePoints(value) : -1;

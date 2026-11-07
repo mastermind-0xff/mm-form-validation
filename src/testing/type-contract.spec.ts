@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defineType } from '../core/define-type.js';
+import { length } from '../core/stages.js';
 import { text } from '../types/text.js';
 import { show, typeContract } from './type-contract.js';
 
@@ -64,7 +65,19 @@ describe('typeContract', () => {
       'liar: invalid "<x" at rule → the message looks like HTML: <b>Bad</b>',
       'liar: empty is required when required → undefined: expected required, got invalid at type: Invalid value.',
       'liar: wrong raw types fail at type → null: expected type, got invalid at required: This field is required.',
-      'liar: examples reach max 3 and 4 → no invalid example of 4 characters at length',
+    ]);
+
+    const short = defineType<{
+      readonly min: number;
+      readonly max: number;
+    }>({
+      name: 'short',
+      defaults: { min: 1, max: 3 },
+      stages: [length],
+      examples: () => ({ valid: ['ok'], invalid: [] }),
+    });
+    expect(failures(typeContract(short))).toEqual([
+      'short: examples reach max 3 and 4 → no valid example of 3 characters',
     ]);
 
     const entity = defineType({

@@ -3,3 +3,4 @@
  * runner-agnostic (vitest, `node:test`…).
  */
 export { show, typeContract, type TestCase } from './type-contract.js';
+export { formCases, type FormSamples } from './form-cases.js';

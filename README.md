@@ -32,8 +32,7 @@ npm install file:../path/to/mm-form-validation   # in the project that uses it
 | `@mmutils/form-validation/css`     | the look as settings and the CSS generator                           |
 | `@mmutils/form-validation/looks/*` | `edge.css`, `underline.css`, `outline.css`, `icon.css`, `filled.css` |
 
-Not built yet: the types `integer`, `code` and `honeypot`, generated test cases for a
-whole form, and helpers that write or check a form's markup.
+Not built yet: a helper that checks a form's markup against its schema.
 
 ## A form
 
@@ -118,6 +117,20 @@ Send the empty message lines and `hidden` on fields that start inactive, or the 
 shifts when the script runs. The binding sets `required` from the schema when it runs;
 write it in the HTML too if the asterisk must show from the first paint.
 
+`fieldAttributes(field, values)` gives what to write on the control, from the schema, so
+markup and schema can't drift: `required`, and by type `type`, `inputmode`,
+`autocapitalize`, `spellcheck`. `values` are the ones the page starts with. It gives no
+`maxlength`: browsers count UTF-16 units, the checks count code points, and a hard limit
+cuts a pasted value without a word where the field would say "At most 100 characters
+(now 104).". A page bundle that doesn't import it doesn't carry it.
+
+```js
+import { fieldAttributes } from '@mmutils/form-validation';
+
+fieldAttributes(register.fields.email);
+// { required: true, type: 'email', inputmode: 'email', autocapitalize: 'none', spellcheck: 'false' }
+```
+
 ### Field types
 
 | Type            | Value   | Arguments (defaults)                                               |
@@ -134,6 +147,9 @@ write it in the HTML too if the asterisk must show from the first paint.
 | `password`      | string  | `min` 8, `max` 128; never trimmed                                  |
 | `confirm`       | string  | `of`: the field to match, default `'password'`                     |
 | `vatNumber`     | string  | `country`: an ISO code; upper-cased, with its prefix               |
+| `code`          | string  | `min` 1, `max` 64, `chars` `'code'`, `upper` false; trimmed        |
+| `integer`       | number  | `min`, `max`: values; from a number or digits; empty gives 0       |
+| `honeypot`      | boolean | none; never refuses, `true` when filled; not required              |
 
 Lengths count code points, so an emoji counts once. Character sets: `text`, `multiline`, `name`, `place`, `address`, `digits`, `alnum`, `code`.
 
@@ -187,6 +203,28 @@ export const word = defineType({
 });
 
 for (const c of typeContract(word, [{}])) test(c.name, c.run);
+```
+
+`formCases` does the same for a whole form. A form is ready for commit when they pass:
+the sample parses and parses again to the same values; each field's type examples, with
+that field's arguments, pass or fail as they say; a required field emptied fails at
+`required` and an optional one passes; inactive fields are ignored; wrong raw types fail
+cleanly; unknown keys don't reach the values. Gates don't run.
+
+```js
+import { formCases } from '@mmutils/form-validation/testing';
+
+for (const c of formCases(register, {
+  // a value for every active field: '' for an optional one left empty
+  valid: {
+    email: 'ana@example.com',
+    password: 'long enough',
+    passwordConfirm: 'long enough',
+    consent: true,
+  },
+  invalid: { email: ['ana@example'] }, // more values a field must refuse
+}))
+  test(c.name, c.run);
 ```
 
 ## Checks of your own: gates
@@ -334,6 +372,9 @@ lifetime and a hash in its name. `bindForm` picks up a field that has focus alre
   markup decides what is checked. A disabled control sends nothing, so a required
   field that is disabled can never pass: use `when` to switch a field off. Of
   several controls of a name, the last wins.
+- A `honeypot` field has no state to show: it passes, filled or not, and the server
+  reads `true` from its value. Hide it with CSS, not with `hidden` or `type="hidden"`,
+  which bots skip.
 - A checkbox needs no `value`, or one the type reads as ticked (`1`, `on`, `true`).
   With `value="yes"` it fails at `type`, in the browser and on the server.
 - A required field with no control in the page blocks the submit and is reported
