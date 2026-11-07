@@ -16,8 +16,8 @@ export default tseslint.config(
   },
   js.configs.recommended,
   {
-    // root configs and the examples' server run in Node
-    files: ['*.js', 'examples/server.js'],
+    // root configs, scripts and the examples' server run in Node
+    files: ['*.js', 'scripts/**/*.js', 'examples/server.js'],
     languageOptions: { globals: globals.node },
   },
   {

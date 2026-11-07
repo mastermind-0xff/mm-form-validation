@@ -66,7 +66,7 @@ const MOTION_PROPERTIES: ReadonlySet<string> = new Set([
 ]);
 
 /** Exists only after the binding ran or the user acted. */
-const INTERACTION = /\[data-(?:state|message)|:focus-visible/;
+const INTERACTION = /\[data-(?:state|message)|:focus-visible|:hover|:active/;
 
 const inlines = (level: InlineLevel, property: string): boolean =>
   level === 'layout' ?
@@ -136,7 +136,7 @@ function usedNames(rules: readonly Rule[]): Set<string> {
   return names;
 }
 
-function tokenValues(look: LookSettings): Map<string, string> {
+export function tokenValues(look: LookSettings): Map<string, string> {
   return new Map([
     ...Object.entries(look.tokens),
     ...Object.entries(look.colors.light),
@@ -147,7 +147,7 @@ function tokenValues(look: LookSettings): Map<string, string> {
 }
 
 /** What changes in dark: the colors that differ, and the arrow drawn with them. */
-function darkValues(look: LookSettings): Map<string, string> {
+export function darkValues(look: LookSettings): Map<string, string> {
   const { light, dark } = look.colors;
   const values = new Map<string, string>();
   for (const [name, value] of Object.entries(dark))
@@ -238,6 +238,7 @@ const header = (look: LookSettings): string =>
  *   :required                        on the controls, from the schema
  *   .fv-box                          the element that shows the state
  *   .fv-message                      the message line under the box
+ *   .fv-submit                       the submit button
  */\n\n`;
 
 /**

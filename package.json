@@ -40,13 +40,21 @@
       "import": "./dist/esm/css/index.js",
       "require": "./dist/cjs/css/index.cjs"
     },
+    "./gates": {
+      "types": "./dist/types/gates/index.d.ts",
+      "import": "./dist/esm/gates/index.js",
+      "require": "./dist/cjs/gates/index.cjs"
+    },
+    "./looks/*": "./dist/looks/*",
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "CHANGELOG.md"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "engines": {
     "node": ">=22"
   },
@@ -54,7 +62,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "npm run clean && rollup -c && tsc -p tsconfig.build.json",
+    "build": "npm run clean && rollup -c && tsc -p tsconfig.build.json && node scripts/build-looks.js",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "test": "vitest run",
     "test:watch": "vitest",

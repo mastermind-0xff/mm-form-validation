@@ -4,6 +4,8 @@
  * bundle never needs it.
  */
 export { INLINE_NOTES, agentBrief, headSnippet } from './brief.js';
+export { generateChanges, lookChanges, lookSheet } from './changes.js';
+export type { LookChanges } from './changes.js';
 export { generateCss } from './generate.js';
 export type { GeneratedCss } from './generate.js';
 export {

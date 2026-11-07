@@ -4,6 +4,27 @@
 
 Nothing released yet. The plan is in `.claude/plan.md` (local).
 
+- Gates: `gates` on any field, functions or names each side implements, run one
+  after another after the stages (stage `gate`). `parseAsync(form, body, { gates })`
+  on the server; `form.parse` throws on a form with gates. In `bindForm`: the option
+  `gates`, a "Checking…" hint, `validateAsync`, submit waits for them.
+- New entry `./gates`: `limitChecks` (first few checks, then a cooldown; answers
+  remembered), `remoteGate`, and the VAT check against VIES: `viesGate`,
+  `answerVatCheck`, `vatGate`.
+- `bindForm` and the designer now default to `timing: 'pause'`.
+- VAT messages: anything but a plain run of digits shows its masks and what they
+  mean: "NLXXXXXXXXXBXX (X = digit)".
+- Names and addresses accept Japanese and Chinese punctuation: `・` `·`; `（` `）` `，`
+  `、` in places; `〒` `−` `－` in addresses.
+- `select` options take numbers, like database ids. The value is still a string.
+- The designer has settings for the submit button (`.fv-submit`): color, text, hover
+  and pressed, padding, corners, text size.
+- The package ships `looks/<look>.css` with the default settings. The designer
+  exports only what differs from them: settings (`lookChanges`) and CSS
+  (`generateChanges`).
+- Inactive fields are hidden with `display: none !important` on `[data-field][hidden]`
+  too, so no `display` on a wrapper can show them.
+
 - Core: `defineType`, `preset`, `defineForm` (`parse`, `check`, `view`),
   results in stages (`type`, `required`, `chars`, `length`, `contains`,
   `pattern`, `rule`), `incomplete` problems for hints while typing, per-field

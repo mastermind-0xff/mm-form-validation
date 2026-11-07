@@ -31,7 +31,7 @@ export type DarkMode = (typeof DARK_MODES)[number];
 export const TIMINGS = ['leave', 'pause', 'input'] as const;
 export type Timing = (typeof TIMINGS)[number];
 
-export type TokenGroup = 'spacing' | 'text' | 'motion';
+export type TokenGroup = 'spacing' | 'text' | 'motion' | 'button';
 
 export interface RangeToken {
   readonly label: string;
@@ -101,6 +101,10 @@ export const TOKENS = {
   ),
   'message-line': range('Message line height', 'text', 1.45, '', 1, 2, 0.05),
   'message-lines': range('Message lines reserved', 'text', 1, '', 1, 4),
+  'button-pad-x': range('Padding left and right', 'button', 16, 'px', 6, 40),
+  'button-pad-y': range('Padding top and bottom', 'button', 9, 'px', 4, 24),
+  'button-radius': range('Corner radius', 'button', 8, 'px', 0, 24),
+  'button-size': range('Text size', 'button', 0.875, 'rem', 0.625, 1.5, 0.0625),
   speed: range('Speed', 'motion', 300, 'ms', 0, 1200, 50),
   ease: {
     label: 'Easing',
@@ -130,6 +134,24 @@ export const COLORS = {
   invalid: { label: 'Invalid', light: '#e5484d', dark: '#ff6369' },
   'invalid-text': { label: 'Error text', light: '#c62a2f', dark: '#ff8a8f' },
   required: { label: 'Required mark', light: '#c62a2f', dark: '#ff8a8f' },
+  button: {
+    label: 'Color',
+    group: 'button',
+    light: '#1f2328',
+    dark: '#e6e8eb',
+  },
+  'button-text': {
+    label: 'Text',
+    group: 'button',
+    light: '#ffffff',
+    dark: '#171a20',
+  },
+  'button-hover': {
+    label: 'Hover and pressed',
+    group: 'button',
+    light: '#3a4048',
+    dark: '#ffffff',
+  },
 } as const;
 
 export type ColorName = keyof typeof COLORS;
@@ -171,7 +193,7 @@ export function defaultLook(): LookSettings {
     darkMode: 'attribute',
     inline: 'paint',
     split: false,
-    timing: 'leave',
+    timing: 'pause',
     tokens: mapNames(tokenNames, (name) => TOKENS[name].value),
     colors: {
       light: mapNames(colorNames, (name) => COLORS[name].light),

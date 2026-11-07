@@ -7,8 +7,8 @@ user types and again when the server receives it, so a value the form accepts
 is never refused by the server, and the other way round.
 
 - Checks run in stages: required, characters, length, shape, then the type's
-  own rule. Each stage has its own message, so the field can say what is
-  still wrong while the user types.
+  own rule, then your own gates. Each stage has its own message, so the field
+  can say what is still wrong while the user types.
 - Optional fields are checked like required ones as soon as they hold a
   value; left empty, they are valid.
 - New field types are small objects: a normalizer, the stages and examples of
@@ -54,6 +54,127 @@ The binding only sets attributes (`data-state`, `data-message`, `required`,
 `aria-invalid`, `hidden`) and the text of each message line; the page's CSS
 gives the look. Make that CSS in the look designer below, or write your own.
 
+A drop-down is checked by value. The value can be a database id, so a list like the
+countries has one source and the rows store the id:
+
+```js
+select({ options: countries.map((c) => ({ value: c.id, label: c.name })) });
+// shows the name, and parse gives '17' as a string
+```
+
+## Checks of your own: gates
+
+A gate is a function that runs after the type's stages, on a value that is otherwise
+valid: "this e-mail is already registered". Give a field as many as you need. They run
+one after another and the first refusal is the message.
+
+```js
+// the schema, imported by both sides
+export const register = defineForm({
+  email: email({ gates: ['emailFree'] }),
+  username: text({
+    // a function runs on both sides
+    gates: [
+      (value) => (value.startsWith('admin') ? 'That name is reserved.' : null),
+    ],
+  }),
+});
+```
+
+A name stands for a gate each side implements, which keeps server code out of the page:
+
+```js
+// the server: a name it doesn't provide is an error, never a skipped check
+import { parseAsync } from '@mmutils/form-validation';
+
+const result = await parseAsync(register, body, {
+  gates: {
+    emailFree: async (value) =>
+      (await users.has(value)) ? 'Already registered.' : null,
+  },
+});
+
+// the browser: a name it doesn't provide is left to the server
+import { remoteGate } from '@mmutils/form-validation/gates';
+
+bindForm(element, register, {
+  gates: { emailFree: remoteGate('/api/email-free') },
+  onSubmit,
+});
+```
+
+- A form with gates must use `parseAsync`: `form.parse` throws rather than skip them.
+- On the server, gates run only when everything else passed, so a bad body costs no
+  database or network. A gate that throws refuses its field.
+- In the browser, a gate waits for the pause while typing and runs at once on leaving
+  the field. The line says "Checking…" (option `checking`) until it answers, and the
+  answer about an old value is dropped. Submitting waits for the gates. A gate that
+  throws leaves the field neutral: the server decides.
+- A gate can return `{ message, retryAfter }` (ms) for an answer that holds for now
+  only: the browser asks again after that long.
+- A gate is asked again when the value or the field's arguments change. If it reads
+  other values of the form, make them arguments.
+- `limitChecks(gate, { free, cooldown, remember })` limits any expensive gate: the
+  first few checks go, then a cooldown; the same value again is answered from memory
+  and doesn't count. `.for(caller)` keeps one limit per caller on a server.
+  `remoteGate` includes it.
+
+### VAT numbers
+
+`vatNumber` checks the shape for the country. `@mmutils/form-validation/gates` adds
+the check that the number exists, against VIES, the EU's service. Browsers can't call
+VIES, so the page asks your server:
+
+```js
+// the schema
+vat: vatNumber({ country: (v) => v.country, required: false, gates: ['vies'] }),
+
+// the server: one per process, it holds the memory and the limits
+const vies = viesGate();
+
+app.post('/api/vat-check', async (req, res) =>
+  res.json(await answerVatCheck(vies, req.body, req.ip))
+);
+app.post('/api/billing', async (req, res) => {
+  const result = await parseAsync(billing, req.body, {
+    gates: { vies: vies.for(req.ip) },
+  });
+  // …
+});
+
+// the browser
+bindForm(element, billing, { gates: { vies: vatGate() }, onSubmit });
+```
+
+|                   | Browser (`vatGate`)                      | Server (`viesGate`)                                |
+| ----------------- | ---------------------------------------- | -------------------------------------------------- |
+| Limit             | 3 checks, then 30 s                      | 10 checks a minute per caller, 120 a minute in all |
+| Options           | `free`, `cooldown`                       | `free`, `cooldown`, `perMinute`                    |
+| Same number again | from memory, for an hour                 | from memory, for a day (`remember`)                |
+| Over the limit    | "Try again in 25 s", then asks by itself | refuses the form: never saved unchecked            |
+| VIES is down      | shows the server's answer                | refuses, "try again"                               |
+
+Numbers outside the EU pass, as VIES doesn't know them. VIES is often down for one
+country or another; to take the order anyway and check later, give
+`viesGate({ acceptWhenDown: (number) => queue(number) })`.
+
+## Loading
+
+Load the form code without blocking the page. A module script is already deferred:
+
+```html
+<!-- a page with a form: fetched early, runs after parsing -->
+<link rel="modulepreload" href="/js/forms.js" />
+<script type="module" src="/js/forms.js"></script>
+
+<!-- the home page, with no form: fetched when idle, for the next page -->
+<link rel="prefetch" href="/js/forms.js" />
+```
+
+Use `prefetch`, not `preload`, on a page that doesn't run the code: `preload` is
+high priority and competes with what that page renders. Give the file a long cache
+lifetime and a hash in its name. `bindForm` picks up a field that has focus already.
+
 ## Good to know
 
 **On the server**
@@ -69,6 +190,9 @@ gives the look. Make that CSS in the look designer below, or write your own.
   controls, Hangul fillers. Text pasted with one of those fails, with a message
   naming the character. The joiners U+200C and U+200D stay, for emoji and for
   scripts that need them.
+- Names and addresses accept any script, so a value may be kanji or Cyrillic. Fonts
+  and invoices that print them, and whether an invoice needs a Latin spelling, are
+  for the application to decide.
 - Letters come from the JavaScript engine's Unicode tables. A newly encoded letter
   can pass on a newer engine and fail on an older one, in `personName`, `place` and
   `streetAddress`. Nothing can fix that from here.
@@ -101,14 +225,33 @@ country, contact), a server that checks the same schemas, and a panel to design
 how the fields look.
 
 - **Design:** one of five looks (edge, underline, outline, icon, filled), spacing,
-  text, light and dark colors, motion, and when an unfinished value turns red. The
+  text, light and dark colors, the submit button (`class="fv-submit"`), motion, and
+  when an unfinished value turns red. The
   forms use the CSS that gets exported, so what you see is what you get. A control
   the chosen look doesn't use is dimmed, and its token is left out of the CSS.
 - **Export:** an agent brief (one Markdown file with the settings, the CSS, the
   markup and how to check the result, so an agent in another project needs nothing
-  else), the settings as JSON, the stylesheet, and the block for `<head>`.
+  else), the settings as JSON with only what differs from the defaults, the CSS with
+  only those changes, the whole stylesheet, and the block for `<head>`.
 - **Import:** paste or load the settings or a saved brief to carry on where you
   left off.
+
+### Only the changes
+
+The package ships a stylesheet per look, with the default settings. Link it, and add
+what you exported, in any order:
+
+```html
+<link rel="stylesheet" href="…/@mmutils/form-validation/looks/edge.css" />
+<link rel="stylesheet" href="/css/form-fields.changes.css" />
+```
+
+```css
+html:root {
+  --fv-pad-x: 20px;
+  --fv-valid: #00aa00;
+}
+```
 
 ### CSS in the HTML
 
@@ -140,15 +283,19 @@ browser nor Node. A form's page bundle never imports it.
 ```js
 import {
   agentBrief,
+  generateChanges,
   generateCss,
   headSnippet,
+  lookChanges,
   parseLook,
 } from '@mmutils/form-validation/css';
 
 const result = parseLook(JSON.parse(settingsText)); // missing values get defaults
 if (!result.ok) throw new Error(result.errors.join('\n'));
 
-const { stylesheet, inline } = generateCss(result.look);
+const changes = generateChanges(result.look); // on top of looks/<look>.css
+const short = lookChanges(result.look); // the settings that aren't defaults
+const { stylesheet, inline } = generateCss(result.look); // all of it
 const head = headSnippet(result.look, '/css/form-fields.css');
 const brief = agentBrief(result.look);
 ```

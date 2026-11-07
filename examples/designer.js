@@ -11,7 +11,9 @@ import {
   agentBrief,
   defaultLook,
   generateCss,
+  generateChanges,
   headSnippet,
+  lookChanges,
   parseLook,
 } from '../dist/esm/css/index.js';
 
@@ -63,7 +65,12 @@ const OUTPUTS = {
   settings: {
     file: 'form-look.json',
     type: 'application/json',
-    text: (look) => `${JSON.stringify(look, null, 2)}\n`,
+    text: (look) => `${JSON.stringify(lookChanges(look), null, 2)}\n`,
+  },
+  changes: {
+    file: 'form-fields.changes.css',
+    type: 'text/css',
+    text: (look) => generateChanges(look),
   },
   stylesheet: {
     file: 'form-fields.css',
@@ -308,12 +315,17 @@ export function startDesigner({ onTiming }) {
     return input;
   }
 
-  for (const [name, { label }] of Object.entries(COLORS)) {
+  for (const [name, color] of Object.entries(COLORS)) {
+    const { label } = color;
     const text = make('span', { textContent: label });
-    element('colors').append(
+    element(color.group === 'button' ? 'button-colors' : 'colors').append(
       text,
-      colorInput(name, label, 'light'),
-      colorInput(name, label, 'dark')
+      colorInput(
+        name,
+        color.group ? `Submit button, ${label}` : label,
+        'light'
+      ),
+      colorInput(name, color.group ? `Submit button, ${label}` : label, 'dark')
     );
     shows.push((_, used) => {
       const unused = !used.has(name);

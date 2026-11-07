@@ -2,6 +2,7 @@
  * The export for whoever applies a look to a project: one Markdown file with
  * the settings, the CSS and how to use them, so an agent needs nothing else.
  */
+import { generateChanges, lookChanges, lookSheet } from './changes.js';
 import { generateCss } from './generate.js';
 import type { InlineLevel, LookSettings } from './settings.js';
 
@@ -99,13 +100,15 @@ to the forms of a project. Everything needed is in this file.
 
 ## What to do
 
-1. Copy the CSS below as it is. Don't write it again from the settings: the rules
+1. Get the CSS in one of two ways. **The package is installed and its stylesheet can
+   be linked:** use Only the changes. **Otherwise,** or when the CSS goes into the
+   HTML: copy Stylesheet as it is. Don't write it again from the settings: the rules
    depend on their order, and a slip shows up as a layout shift. If the project's
    conventions ask for something else (other class names, CSS modules, one build
    that inlines all CSS), keep the rules, their order and the token values, and
    change only what the convention needs.
 2. Add the head block to the pages with a form (see Head).
-3. Give each field the markup under Markup.
+3. Give each field the markup under Markup, and each submit button \`class="fv-submit"\`.
 4. Bind each form with \`bindForm(form, schema, { timing: '${look.timing}', onSubmit })\` from
    \`@mmutils/form-validation/dom\`. \`timing\` was chosen together with the look: it
    says when an unfinished value turns red.
@@ -149,11 +152,19 @@ A message longer than the reserved lines still pushes what is below it. This loo
 reserves ${look.tokens['message-lines']} line(s) (\`--fv-message-lines\`). In a narrow column, shorten the
 message or raise that token for the column.
 
+## Only the changes
+
+Link \`${lookSheet(look.look)}\` and add this, in any order:
+
+\`\`\`css
+${generateChanges(look)}\`\`\`
+
 ${headSection(look)}
 ${stylesheetSection(stylesheet)}
 ## Settings
 
-The source of everything above. Keep it next to the CSS: to change the look, import
+The source of everything above, with only what differs from the defaults. Keep it
+next to the CSS: to change the look, import
 it in the designer (\`npm run examples\` in the repository of the package, Export,
 Import settings), or generate the CSS in code when the project has the package:
 
@@ -166,7 +177,7 @@ const { stylesheet, inline } = generateCss(result.look);
 \`\`\`
 
 \`\`\`json
-${JSON.stringify(look, null, 2)}
+${JSON.stringify(lookChanges(look), null, 2)}
 \`\`\`
 
 ## Checks

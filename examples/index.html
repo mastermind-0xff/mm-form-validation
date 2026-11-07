@@ -87,6 +87,14 @@
             </div>
           </section>
           <section>
+            <h2>Submit button</h2>
+            <div class="controls" data-group="button"></div>
+            <div class="colors" id="button-colors">
+              <span></span><span class="column">Light</span
+              ><span class="column">Dark</span>
+            </div>
+          </section>
+          <section>
             <h2>Motion</h2>
             <div class="controls" data-group="motion"></div>
           </section>
@@ -130,7 +138,7 @@
             >
           </fieldset>
           <button type="button" id="reset">
-            Reset spacing, text, colors, motion
+            Reset spacing, text, colors, button, motion
           </button>
         </div>
 
@@ -191,8 +199,12 @@
                 Settings</label
               >
               <label
-                ><input type="radio" name="output" value="stylesheet" />
-                Stylesheet</label
+                ><input type="radio" name="output" value="changes" /> Only the
+                changes</label
+              >
+              <label
+                ><input type="radio" name="output" value="stylesheet" /> Whole
+                stylesheet</label
               >
               <label
                 ><input type="radio" name="output" value="head" /> Head
@@ -265,7 +277,7 @@
               <p class="fv-message" data-message-for="password"></p>
             </div>
             <div class="actions">
-              <button type="submit">Sign in</button>
+              <button class="fv-submit" type="submit">Sign in</button>
               <button type="button" data-action="raw">Send as is</button>
               <button type="button" data-action="clear">Clear</button>
             </div>
@@ -329,7 +341,9 @@
               <p class="fv-message" data-message-for="consent"></p>
             </div>
             <div class="actions">
-              <button type="submit">Create the account</button>
+              <button class="fv-submit" type="submit">
+                Create the account
+              </button>
               <button type="button" data-action="raw">Send as is</button>
               <button type="button" data-action="clear">Clear</button>
             </div>
@@ -453,7 +467,7 @@
               <p class="fv-message" data-message-for="address2"></p>
             </div>
             <div class="actions">
-              <button type="submit">Save</button>
+              <button class="fv-submit" type="submit">Save</button>
               <button type="button" data-action="raw">Send as is</button>
               <button type="button" data-action="clear">Clear</button>
             </div>
@@ -522,7 +536,7 @@
               <p class="fv-message" data-message-for="message"></p>
             </div>
             <div class="actions">
-              <button type="submit">Send</button>
+              <button class="fv-submit" type="submit">Send</button>
               <button type="button" data-action="raw">Send as is</button>
               <button type="button" data-action="clear">Clear</button>
             </div>

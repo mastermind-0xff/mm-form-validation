@@ -401,7 +401,7 @@ code {
   margin-top: 6px;
 }
 
-.actions button {
+.actions button:not(.fv-submit) {
   padding: 9px 16px;
   border: 1px solid var(--card-line);
   border-radius: 8px;
@@ -410,12 +410,6 @@ code {
   font: inherit;
   font-size: 0.875rem;
   cursor: pointer;
-}
-
-.actions button[type='submit'] {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--card-bg);
 }
 
 .server {

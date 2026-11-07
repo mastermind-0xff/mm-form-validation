@@ -11,6 +11,7 @@
  *   .fv-box                          the element that shows the state (an
  *                                    input, a select, a textarea, a group)
  *   .fv-message                      the message line under the box
+ *   .fv-submit                       the submit button
  */
 import type { LookName } from './settings.js';
 
@@ -55,9 +56,9 @@ export const BASE_RULES: readonly Rule[] = [
   },
   {
     comment:
-      'Inactive fields: the binding sets `hidden`, which `display` above would override.',
-    selector: '.fv-field[hidden]',
-    declarations: { display: 'none' },
+      'Inactive fields: the binding sets `hidden`, which any `display` on the wrapper would override.',
+    selector: '[data-field][hidden], .fv-field[hidden]',
+    declarations: { display: 'none !important' },
   },
   {
     selector: '.fv-field > label:not(.fv-option), .fv-field > legend',
@@ -161,6 +162,37 @@ export const BASE_RULES: readonly Rule[] = [
     declarations: {
       color: 'var(--fv-invalid-text)',
       animation: 'fv-error var(--fv-speed) var(--fv-ease)',
+    },
+  },
+  {
+    comment: 'The submit button: put class="fv-submit" on it.',
+    selector: '.fv-submit',
+    declarations: {
+      padding: 'var(--fv-button-pad-y) var(--fv-button-pad-x)',
+      border: '1px solid var(--fv-button)',
+      'border-radius': 'var(--fv-button-radius)',
+      'background-color': 'var(--fv-button)',
+      color: 'var(--fv-button-text)',
+      font: 'inherit',
+      'font-size': 'var(--fv-button-size)',
+      cursor: 'pointer',
+      transition:
+        'background-color var(--fv-speed) var(--fv-ease), border-color var(--fv-speed) var(--fv-ease)',
+    },
+  },
+  {
+    selector: '.fv-submit:hover, .fv-submit:active',
+    declarations: {
+      'border-color': 'var(--fv-button-hover)',
+      'background-color': 'var(--fv-button-hover)',
+    },
+  },
+  {
+    selector: '.fv-submit:focus-visible',
+    declarations: {
+      outline:
+        '2px solid color-mix(in srgb, var(--fv-button) 45%, transparent)',
+      'outline-offset': '2px',
     },
   },
 ];

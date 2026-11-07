@@ -317,7 +317,7 @@ describe('generateCss: the inline block', () => {
   it('keeps the rule that hides inactive fields', () => {
     for (const level of partLevels)
       expect(generateCss(look({ inline: level })).inline).toContain(
-        '.fv-field[hidden]{display:none}'
+        '[data-field][hidden],.fv-field[hidden]{display:none !important}'
       );
   });
 
@@ -417,10 +417,16 @@ describe('generateCss: a split stylesheet', () => {
     const held = new Set(parseCss(inline).map(id));
     const related = (a: string, b: string) =>
       a === b || a.startsWith(`${b}-`) || b.startsWith(`${a}-`);
+    // the submit button is no field: their rules never meet on one element
+    const isButton = (selector: string) => selector.includes('.fv-submit');
     whole.forEach((later, index) => {
       if (!held.has(id(later))) return;
       for (const earlier of whole.slice(0, index))
-        if (!held.has(id(earlier)) && related(earlier.property, later.property))
+        if (
+          !held.has(id(earlier)) &&
+          related(earlier.property, later.property) &&
+          isButton(earlier.selector) === isButton(later.selector)
+        )
           expect.fail(
             `${later.selector} ${later.property} moved in front of ${earlier.selector} ${earlier.property}`
           );
