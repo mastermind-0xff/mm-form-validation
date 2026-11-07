@@ -9,6 +9,8 @@ export default tseslint.config(
       'dist',
       'node_modules',
       'coverage',
+      'test-results',
+      'playwright-report',
       // local notes and references, git-ignored
       '.claude',
       'resources',
@@ -19,6 +21,11 @@ export default tseslint.config(
     // root configs, scripts and the examples' server run in Node
     files: ['*.js', 'scripts/**/*.js', 'examples/server.js'],
     languageOptions: { globals: globals.node },
+  },
+  {
+    // the browser specs run in Node and hand functions to the page
+    files: ['e2e/**/*.js'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {
     // the examples' page scripts run in the browser
