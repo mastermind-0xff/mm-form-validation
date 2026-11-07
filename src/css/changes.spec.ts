@@ -165,6 +165,20 @@ describe('generateChanges on the shipped stylesheet', () => {
     expect(changes).toContain('html:root {');
   });
 
+  it('following the system, undoes the shipped rule for data-scheme', () => {
+    // found in a real browser: that rule outweighs html:root, so a page that has
+    // the attribute got the shipped dark colors, whatever the system said
+    const changes = generateChanges(look({ darkMode: 'media' }));
+    const attribute = "html:root[data-scheme='dark'] {\n";
+    const [light = '', dark = ''] = changes.split(
+      '@media (prefers-color-scheme: dark)'
+    );
+    expect(light).toContain(attribute);
+    expect(light).toContain(`--fv-text: ${defaultLook().colors.light.text};`);
+    expect(dark).toContain(attribute);
+    expect(dark).toContain(`--fv-text: ${defaultLook().colors.dark.text};`);
+  });
+
   it('refuses what parseLook refuses', () => {
     expect(() =>
       generateChanges(

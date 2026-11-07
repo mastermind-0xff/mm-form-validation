@@ -92,10 +92,20 @@ export function generateChanges(settings: LookSettings): string {
   if (!isEmpty(lightChanges)) parts.push(block('html:root', lightChanges));
 
   if (look.darkMode === 'media') {
-    if (!isEmpty(wantedDark))
-      parts.push(
-        `@media (prefers-color-scheme: dark) {\n${block('html:root', wantedDark, '  ')}\n}`
+    // the shipped sheet's attribute rule outweighs `html:root`: on a page that has
+    // the attribute anyway, only the system may decide, as in the whole sheet
+    const attribute = "html:root[data-scheme='dark']";
+    const undone = (values: Readonly<Record<string, string>>) =>
+      Object.fromEntries(
+        Object.keys(shippedDark).map((name) => [
+          name,
+          values[name] ?? (light[name] as string),
+        ])
       );
+    parts.push(block(attribute, undone(light)));
+    parts.push(
+      `@media (prefers-color-scheme: dark) {\n${block('html:root', wantedDark, '  ')}\n\n${block(attribute, undone(wantedDark), '  ')}\n}`
+    );
   }
   // under the attribute, a color has its shipped dark value if it has one, else
   // the light one: what differs from that is what has to be said
