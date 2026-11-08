@@ -178,3 +178,20 @@ describe('formCases', () => {
     expect(failing(formCases(form, { valid: { kind: '0' } }))).toEqual([]);
   });
 });
+
+describe('formCases: confirm', () => {
+  it('a retyped e-mail passes its cases: it is compared as the e-mail reads it', () => {
+    const form = defineForm({
+      email: email(),
+      emailAgain: confirm({ of: 'email' }),
+    });
+    expect(
+      failing(
+        formCases(form, {
+          valid: { email: 'Ana@example.com', emailAgain: 'Ana@example.com' },
+          invalid: { emailAgain: ['ana@example.org'] },
+        })
+      )
+    ).toEqual([]);
+  });
+});

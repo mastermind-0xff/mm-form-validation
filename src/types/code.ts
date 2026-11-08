@@ -22,8 +22,8 @@ export interface CodeArgs {
 /** The stage on the value as it will be stored: "ß" is "SS" in upper case. */
 const stored = (stage: Stage<CodeArgs>): Stage<CodeArgs> => ({
   name: stage.name,
-  check: (value, args, values) =>
-    stage.check(args.upper ? value.toUpperCase() : value, args, values),
+  check: (value, args, values, fields) =>
+    stage.check(args.upper ? value.toUpperCase() : value, args, values, fields),
 });
 
 export const code = /* @__PURE__ */ defineType<CodeArgs>({

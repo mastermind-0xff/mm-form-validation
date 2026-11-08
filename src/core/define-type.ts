@@ -116,7 +116,7 @@ export function defineType<A extends object, V = string>(
       isRequired,
       hint: (values = {}) =>
         hint === undefined ? spec.hint?.(args(values)) : resolve(hint, values),
-      check: (raw, values = {}): FieldResult<V> => {
+      check: (raw, values = {}, fields): FieldResult<V> => {
         const read_ = read(raw);
         if (read_ === undefined)
           return fail('type', { message: 'Invalid value.' });
@@ -135,7 +135,7 @@ export function defineType<A extends object, V = string>(
               })
             : EMPTY;
         for (const stage of spec.stages) {
-          const problem = stage.check(value, resolved, values);
+          const problem = stage.check(value, resolved, values, fields);
           if (problem !== undefined) return fail(stage.name, problem);
         }
         const ruleMessage = rule?.(value, values);

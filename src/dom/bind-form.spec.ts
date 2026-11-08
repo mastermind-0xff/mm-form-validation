@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineForm } from '../core/define-form.js';
 import { checkbox } from '../types/checkbox.js';
+import { confirm } from '../types/confirm.js';
 import { choice, select } from '../types/select.js';
 import { email } from '../types/email.js';
 import { honeypot } from '../types/honeypot.js';
@@ -664,5 +665,36 @@ describe('bindForm: showErrors', () => {
     const bound = bind();
     bound.showErrors([{ field: 'name', message: 'Taken.' }]);
     expect(line('name')).toBe('Taken.');
+  });
+});
+
+describe('bindForm: confirm', () => {
+  const twice = defineForm({
+    email: email(),
+    emailAgain: confirm({ of: 'email' }),
+  });
+
+  beforeEach(() => {
+    document.body.innerHTML = `<form>
+      <div data-field="email"><input name="email"><p data-message-for="email"></p></div>
+      <div data-field="emailAgain"><input name="emailAgain"><p data-message-for="emailAgain"></p></div>
+      <button>Send</button></form>`;
+    form = document.querySelector('form')!;
+  });
+
+  it('compares like with like, as the server does', () => {
+    const onSubmit = vi.fn();
+    bindForm(form, twice, { onSubmit, timing: 'input' });
+    type('email', 'Ana@X.com');
+    type('emailAgain', 'ANA@x');
+    expect(box('emailAgain').getAttribute('data-state')).toBe('invalid');
+    type('emailAgain', 'Ana@X.com ');
+    expect(box('emailAgain').getAttribute('data-state')).toBe('valid');
+    expect(line('emailAgain')).toBe('');
+    form.requestSubmit();
+    expect(onSubmit).toHaveBeenCalledWith(
+      { email: 'ana@x.com', emailAgain: 'Ana@X.com ' },
+      expect.anything()
+    );
   });
 });

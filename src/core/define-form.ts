@@ -77,7 +77,7 @@ export function defineForm<F extends FormFields>(fields: F): Form<F> {
       if (field === undefined) continue;
       parsed[name] = field.empty;
       if (!field.isActive(values)) continue;
-      const result = field.check(own(raw, name), values);
+      const result = field.check(own(raw, name), values, fields);
       if (result.state === 'valid') parsed[name] = result.value;
       else if (result.state === 'invalid')
         errors.push({
@@ -104,7 +104,7 @@ export function defineForm<F extends FormFields>(fields: F): Form<F> {
       // a name may come from a client: `constructor` isn't a field
       const field = own(fields, name) as Field | undefined;
       return field?.isActive(values) ?
-          field.check(own(raw, name), values)
+          field.check(own(raw, name), values, fields)
         : undefined;
     },
     parse: (body, options) => {

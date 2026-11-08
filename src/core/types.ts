@@ -46,7 +46,9 @@ export interface Stage<A> {
   readonly check: (
     value: string,
     args: A,
-    values: FormValues
+    values: FormValues,
+    /** The form's fields, when a form runs the check (`confirm` reads its `of`). */
+    fields?: Readonly<Record<string, Field>>
   ) => Problem | undefined;
 }
 
@@ -177,8 +179,15 @@ export interface Field<V = unknown, A = unknown> {
   isRequired(values?: FormValues): boolean;
   /** What the field expects, for the message line while it is empty. */
   hint(values?: FormValues): string | undefined;
-  /** Checks one raw value; `values` are the other values of the form. */
-  check(raw: unknown, values?: FormValues): FieldResult<V>;
+  /**
+   * Checks one raw value; `values` are the other values of the form, `fields`
+   * its fields (a form passes both, so `confirm` compares like with like).
+   */
+  check(
+    raw: unknown,
+    values?: FormValues,
+    fields?: Readonly<Record<string, Field>>
+  ): FieldResult<V>;
   examples(values?: FormValues): Examples;
 }
 

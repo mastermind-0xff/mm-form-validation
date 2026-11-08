@@ -306,7 +306,11 @@ export function bindForm<F extends FormFields>(
     let message = '';
     let pending = false;
     if (active) {
-      let result: FieldResult<unknown> = field.check(raw[slot.name], view);
+      let result: FieldResult<unknown> = field.check(
+        raw[slot.name],
+        view,
+        schema.fields
+      );
       if (result.state === 'valid' && slot.gates.length > 0 && slot.touched) {
         const { outcome } = gateCheck(slot, result.value, view);
         if (outcome?.refused !== undefined)
