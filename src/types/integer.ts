@@ -50,7 +50,8 @@ export const integer = /* @__PURE__ */ defineType<
   defaults: { min: LOWEST, max: HIGHEST },
   read: readScalar,
   normalize: (value) => value.trim(),
-  value: (value) => (value === '' ? undefined : Number(value)),
+  // + 0: "-0" is 0, not -0 (`Object.is` and `deepStrictEqual` tell them apart)
+  value: (value) => (value === '' ? undefined : Number(value) + 0),
   stages: [
     {
       name: 'pattern',

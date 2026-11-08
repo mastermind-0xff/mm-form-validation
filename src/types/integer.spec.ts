@@ -21,6 +21,13 @@ describe('integer', () => {
     expect(integer().check(0)).toEqual({ state: 'valid', value: 0 });
   });
 
+  it('gives 0 for "-0", not -0', () => {
+    for (const raw of ['-0', '-000', -0]) {
+      const result = integer({ min: 0 }).check(raw);
+      expect(result.state === 'valid' && Object.is(result.value, 0)).toBe(true);
+    }
+  });
+
   it('says the range', () => {
     expect(integer({ min: 1, max: 99 }).check(100)).toMatchObject({
       stage: 'rule',
