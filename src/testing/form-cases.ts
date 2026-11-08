@@ -5,7 +5,7 @@
  */
 import type { Form, FormFields, ParseResult } from '../core/define-form.js';
 import type { Field, FormValues } from '../core/types.js';
-import { show, type TestCase } from './type-contract.js';
+import { assert, show, WRONG_TYPES, type TestCase } from './type-contract.js';
 
 export interface FormSamples {
   /**
@@ -16,12 +16,6 @@ export interface FormSamples {
   /** More values each field must refuse, by field. */
   readonly invalid?: Readonly<Record<string, readonly unknown[]>>;
 }
-
-function assert(ok: boolean, message: string): asserts ok {
-  if (!ok) throw new Error(message);
-}
-
-const WRONG_TYPES: readonly unknown[] = [{}, [], null];
 
 /** What can't be a value of any field, not even an inactive one's. */
 const JUNK = '\u0007<junk>';
@@ -96,8 +90,14 @@ export function formCases<F extends FormFields>(
 
     if (!field.isActive(view)) {
       add(`${label}: inactive in this sample, ignored`, () => {
-        const result = parse({ ...valid, [name]: JUNK });
-        assert(result.ok, `refused: ${JSON.stringify(result)}`);
+        // junk in it may switch other fields (a `when` that reads it): only
+        // this field is asked about
+        const junk = parse({ ...valid, [name]: JUNK });
+        const error =
+          junk.ok ? undefined : junk.errors.find((e) => e.field === name);
+        assert(error === undefined, `refused at ${error?.stage ?? ''}`);
+        const result = junk.ok ? junk : parse(valid);
+        if (!result.ok) return; // 'the valid sample parses' says why
         assert(
           Object.is(
             (result.values as Readonly<Record<string, unknown>>)[name],
@@ -120,11 +120,15 @@ export function formCases<F extends FormFields>(
     const base = { ...valid, ...examples.values };
     for (const value of examples.valid)
       add(`${label}: example ${show(value)} passes`, () => {
-        const error = errorOf({ ...base, [name]: value }, name);
-        // the field's own rule may narrow what the type accepts
+        const body = { ...base, [name]: value };
+        const error = errorOf(body, name);
+        // the field's own rule may narrow what the type accepts, but only
+        // its own refusal counts, not the type's stage of the same name
+        const rule = field.options.rule;
         assert(
           error === undefined ||
-            (field.options.rule !== undefined && error.stage === 'rule'),
+            (error.stage === 'rule' &&
+              rule?.(String(field.view(value)), form.view(body)) !== undefined),
           `refused at ${error?.stage ?? ''}: ${error?.message ?? ''}`
         );
       });

@@ -16,7 +16,7 @@ export interface TestCase {
   readonly run: () => void;
 }
 
-function assert(ok: boolean, message: string): asserts ok {
+export function assert(ok: boolean, message: string): asserts ok {
   if (!ok) throw new Error(message);
 }
 
@@ -55,7 +55,8 @@ function assertPlain(message: string): void {
   );
 }
 
-const WRONG_TYPES: readonly unknown[] = [{}, [], null];
+/** Raw values no form sends: every field fails them at `type`. */
+export const WRONG_TYPES: readonly unknown[] = [{}, [], null];
 
 /**
  * Cases for one type and some argument sets: valid examples pass and stay the
@@ -85,6 +86,8 @@ export function typeContract<A extends object, V>(
     for (const value of examples.valid)
       add(`valid ${show(value)}`, () => {
         const result = field.check(value, values);
+        // a type whose only valid value is empty (`honeypot`), when optional
+        if (result.state === 'empty' && !field.isRequired(values)) return;
         assert(
           result.state === 'valid',
           `expected valid, got ${outcome(result)}`

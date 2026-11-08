@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { defineForm } from '../core/define-form.js';
+import { defineType } from '../core/define-type.js';
 import type { FormValues } from '../core/types.js';
 import { checkbox } from '../types/checkbox.js';
 import { code } from '../types/code.js';
@@ -143,5 +144,37 @@ describe('formCases', () => {
       }),
     });
     expect(failing(formCases(narrow, { valid: { word: 'b' } }))).toEqual([]);
+  });
+
+  it("does not let a field rule hide the type's own rule stage", () => {
+    // a type whose own `rule` stage refuses one of its valid examples
+    const odd = defineType({
+      name: 'odd',
+      defaults: {},
+      stages: [
+        {
+          name: 'rule',
+          check: (value: string) =>
+            value === '2' ? { message: 'Not 2.' } : undefined,
+        },
+      ],
+      examples: () => ({ valid: ['1', '2'], invalid: [] }),
+    });
+    const form = defineForm({
+      n: odd({ rule: (value) => (value === '3' ? 'Not 3.' : undefined) }),
+    });
+    expect(failing(formCases(form, { valid: { n: '1' } }))).toEqual([
+      'n (odd): example "2" passes',
+    ]);
+  });
+
+  it('asks only about the inactive field, when another field reads it', () => {
+    const form = defineForm({
+      kind: choice({ options: ['0', '1'] }),
+      note: text({ when: (v) => v['kind'] === '1' }),
+      // reads `note`: junk there switches it on
+      extra: text({ when: (v) => v['note'] !== '' }),
+    });
+    expect(failing(formCases(form, { valid: { kind: '0' } }))).toEqual([]);
   });
 });
