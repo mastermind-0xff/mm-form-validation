@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fieldAttributes } from '../core/attributes.js';
 import { defineForm } from '../core/define-form.js';
+import type { Field } from '../core/types.js';
 import { checkbox } from '../types/checkbox.js';
 import { confirm } from '../types/confirm.js';
 import { choice, select } from '../types/select.js';
@@ -614,6 +616,11 @@ describe('bindForm: a honeypot', () => {
     form = document.querySelector('form')!;
   });
 
+  // a failed assertion must not leave console.error mocked for later tests
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('gets no message line, no state and no describedby', () => {
     const bound = bindForm(form, trapped);
     expect(form.querySelectorAll('[data-message-for]')).toHaveLength(1);
@@ -644,7 +651,6 @@ describe('bindForm: a honeypot', () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     // it has a control: nothing to report
     expect(error).not.toHaveBeenCalled();
-    error.mockRestore();
   });
 
   it('ignores a message line the page has for it', () => {
@@ -696,5 +702,23 @@ describe('bindForm: confirm', () => {
       { email: 'ana@x.com', emailAgain: 'Ana@X.com ' },
       expect.anything()
     );
+  });
+});
+
+describe('bindForm: a field from an older copy of the package', () => {
+  it('binds a field without bases', () => {
+    const older: Field = { ...email() };
+    delete (older as { bases?: unknown }).bases;
+    expect(older).not.toHaveProperty('bases');
+    const legacy = defineForm({ email: older });
+    document.body.innerHTML = `<form><div data-field="email"><input name="email"><p data-message-for="email"></p></div></form>`;
+    form = document.querySelector('form')!;
+    const bound = bindForm(form, legacy);
+    control('email').value = 'nope';
+    expect(bound.validate()).toBe(false);
+    expect(line('email')).toBe('Enter a valid e-mail, like name@example.com.');
+    expect(fieldAttributes(legacy, 'email')).toMatchObject({
+      inputmode: 'email',
+    });
   });
 });

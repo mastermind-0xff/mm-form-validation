@@ -191,7 +191,7 @@ export function bindForm<F extends FormFields>(
     if (box === null) continue;
     // a honeypot's value is sent and checked, but nothing about it shows: no
     // message line inside its label, no state, no focus
-    const trap = [field.type, ...field.bases].includes('honeypot');
+    const trap = [field.type, ...(field.bases ?? [])].includes('honeypot');
     let line = trap ? undefined : lines.get(name);
     if (line === undefined && !trap) {
       line = form.ownerDocument.createElement('p');

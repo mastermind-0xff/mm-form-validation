@@ -82,7 +82,7 @@ function byType(
   seen: ReadonlySet<Field>
 ): FieldAttributes {
   const args = field.args(view) as Args;
-  for (const name of [field.type, ...field.bases]) {
+  for (const name of [field.type, ...(field.bases ?? [])]) {
     if (name === 'confirm') {
       // like the field it repeats: a retyped password, a retyped e-mail
       const of = typeof args['of'] === 'string' ? args['of'] : '';

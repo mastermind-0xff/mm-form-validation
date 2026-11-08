@@ -168,8 +168,11 @@ export type FieldOptions<A> = CommonOptions & DynamicArgs<A>;
 /** A field of a form: a type with its arguments and options. */
 export interface Field<V = unknown, A = unknown> {
   readonly type: string;
-  /** The types `type` was made from, nearest first (`place`: `['text']`). */
-  readonly bases: readonly string[];
+  /**
+   * The types `type` was made from, nearest first (`place`: `['text']`).
+   * Optional: a field from an older copy of the package has none.
+   */
+  readonly bases?: readonly string[];
   readonly options: FieldOptions<A>;
   /** The value when the field is empty or inactive ('' or false). */
   readonly empty: V;
