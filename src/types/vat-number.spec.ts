@@ -9,7 +9,6 @@ describe('vatNumber', () => {
     ...EU.map((country) => ({ country })),
     { country: 'US' },
     { country: '' },
-    { country: 'bg' },
   ]))
     it(c.name, c.run);
 
@@ -134,6 +133,40 @@ describe('vatNumber', () => {
     expect(vatNumber({ country: 'BG' }).check('BG12/34')).toMatchObject({
       stage: 'chars',
       message: 'The character "/" is not allowed.',
+    });
+  });
+
+  it('refuses a country that is not an ISO 3166-1 alpha-2 code, before anything else', () => {
+    for (const country of ['Bulgaria', 'bg', 'Bg', 'BGR', 'B', '35', ' BG']) {
+      const field = vatNumber({ country });
+      for (const value of ['BG123456789', 'ABC123', '<'])
+        expect(field.check(value)).toEqual({
+          state: 'invalid',
+          stage: 'rule',
+          message: 'The country must be an ISO 3166-1 code, like BG.',
+          incomplete: false,
+        });
+      expect(field.hint()).toBeUndefined();
+      expect(field.examples().valid).toEqual([]);
+    }
+    // empty and optional is still empty; a field message replaces it
+    expect(
+      vatNumber({ country: 'Bulgaria', required: false }).check('')
+    ).toEqual({ state: 'empty' });
+    expect(
+      vatNumber({
+        country: 'bg',
+        messages: { rule: 'Choose your country first.' },
+      }).check('BG123456789')
+    ).toMatchObject({ message: 'Choose your country first.' });
+  });
+
+  it('checks an empty country, and a code outside the EU, as outside the EU', () => {
+    expect(vatNumber({ country: '' }).check('ABC123')).toMatchObject({
+      state: 'valid',
+    });
+    expect(vatNumber({ country: 'CH' }).check('CHE123')).toMatchObject({
+      state: 'valid',
     });
   });
 });

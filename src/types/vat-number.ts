@@ -18,9 +18,20 @@ import { charsStage } from '../core/stages.js';
 import type { Problem } from '../core/types.js';
 
 export interface VatNumberArgs {
-  /** ISO 3166-1 code of the company's country (often a function of the values). */
+  /**
+   * ISO 3166-1 alpha-2 code of the company's country, two capital letters
+   * (often a function of the values). '' checks the number as outside the EU;
+   * anything else (a name, lower case) refuses the field at `rule`.
+   */
   readonly country: string;
 }
+
+const ISO = /^[A-Z]{2}$/u;
+const BAD_COUNTRY = 'The country must be an ISO 3166-1 code, like BG.';
+
+/** A country the field can't check against: not '' and not an ISO code. */
+const badCountry = (country: string): boolean =>
+  country !== '' && !ISO.test(country);
 
 type Format = readonly [
   national: RegExp,
@@ -97,12 +108,14 @@ interface Split {
 }
 
 function split(value: string, country: string): Split | undefined {
-  const code = country.toUpperCase();
-  const format = EU_VAT_FORMATS[code];
+  const format =
+    Object.hasOwn(EU_VAT_FORMATS, country) ?
+      EU_VAT_FORMATS[country]
+    : undefined;
   if (format === undefined) return undefined;
-  const prefix = vatPrefix(code);
+  const prefix = vatPrefix(country);
   const own =
-    value.startsWith(prefix) || (code === 'GR' && value.startsWith('GR'));
+    value.startsWith(prefix) || (country === 'GR' && value.startsWith('GR'));
   return { format, prefix, own, national: own ? value.slice(2) : value };
 }
 
@@ -150,6 +163,14 @@ export const vatNumber = /* @__PURE__ */ defineType<VatNumberArgs>({
   defaults: { country: '' },
   normalize: (value) => value.toUpperCase().replace(/[\s.-]/gu, ''),
   stages: [
+    {
+      // the form's mistake, not the visitor's: before anything else
+      name: 'rule',
+      check: (_value, { country }) =>
+        badCountry(country) ?
+          { message: BAD_COUNTRY, details: { country: country.slice(0, 40) } }
+        : undefined,
+    },
     charsStage(() => /[^A-Z0-9]/u),
     {
       // another country's prefix: no more typing fixes that
@@ -186,13 +207,15 @@ export const vatNumber = /* @__PURE__ */ defineType<VatNumberArgs>({
     return s === undefined ? value : s.prefix + s.national;
   },
   hint: ({ country }) => {
-    const code = country.toUpperCase();
-    const format = EU_VAT_FORMATS[code];
-    return format === undefined ?
+    if (badCountry(country)) return undefined;
+    const s = split('', country);
+    return s === undefined ?
         '4 to 20 letters and digits.'
-      : shape(vatPrefix(code), format);
+      : shape(s.prefix, s.format);
   },
   examples: ({ country }) => {
+    if (badCountry(country))
+      return { valid: [], invalid: [{ value: 'ABC123', stage: 'rule' }] };
     const s = split('', country);
     if (s === undefined)
       return {

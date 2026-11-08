@@ -45,7 +45,7 @@ export interface ViesOptions extends LimitOptions {
 
 const countryOf = (args: unknown): string => {
   const { country } = (args ?? {}) as { readonly country?: unknown };
-  return typeof country === 'string' ? country.toUpperCase() : '';
+  return typeof country === 'string' ? country : '';
 };
 
 const inEu = (country: string): boolean =>
