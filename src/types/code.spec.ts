@@ -11,6 +11,7 @@ describe('code', () => {
     { upper: true },
     { chars: 'digits', max: 3 },
     { chars: /[^A-Z0-9]/u, min: 5, max: 40 },
+    { chars: /[^A-Z0-9]/u, upper: true, max: 10 },
   ]))
     it(c.name, c.run);
 
@@ -47,6 +48,28 @@ describe('code', () => {
     expect(code().check('x'.repeat(65))).toMatchObject({
       stage: 'length',
       incomplete: false,
+    });
+  });
+
+  it('checks the upper-cased value, which is what is stored', () => {
+    // "ß" is "SS" in upper case: 6 characters stored for 3 typed
+    expect(
+      code({ upper: true, chars: 'text', max: 3 }).check('ßßß')
+    ).toMatchObject({
+      stage: 'length',
+      message: 'At most 3 characters (now 6).',
+    });
+    expect(code({ chars: 'text', max: 3 }).check('ßßß')).toEqual({
+      state: 'valid',
+      value: 'ßßß',
+    });
+    // a set of capitals takes lower case typed into an upper-case code
+    expect(code({ upper: true, chars: /[^A-Z]/u }).check('abc')).toEqual({
+      state: 'valid',
+      value: 'ABC',
+    });
+    expect(code({ chars: /[^A-Z]/u }).check('abc')).toMatchObject({
+      stage: 'chars',
     });
   });
 });
