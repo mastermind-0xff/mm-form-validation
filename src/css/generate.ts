@@ -37,6 +37,7 @@ export const LAYOUT_PROPERTIES: ReadonlySet<string> = new Set([
   'border-bottom-width',
   'border-width',
   'box-sizing',
+  'clip-path',
   'content',
   'display',
   'flex-wrap',
@@ -53,9 +54,13 @@ export const LAYOUT_PROPERTIES: ReadonlySet<string> = new Set([
   'margin-right',
   'min-height',
   'min-width',
+  'overflow',
+  'overflow-wrap',
   'padding',
   'padding-left',
   'padding-right',
+  'position',
+  'white-space',
   'width',
 ]);
 

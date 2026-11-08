@@ -12,6 +12,7 @@
  *                                    input, a select, a textarea, a group)
  *   .fv-message                      the message line under the box
  *   .fv-submit                       the submit button
+ *   .fv-trap                         a honeypot's wrapper (hidden)
  */
 import type { LookName } from './settings.js';
 
@@ -59,6 +60,20 @@ export const BASE_RULES: readonly Rule[] = [
       'Inactive fields: the binding sets `hidden`, which any `display` on the wrapper would override.',
     selector: '[data-field][hidden], .fv-field[hidden]',
     declarations: { display: 'none !important' },
+  },
+  {
+    comment:
+      "A honeypot's wrapper: out of sight, 1px and clipped, not display: none, which some bots skip. The markup keeps it from the keyboard, autofill and assistive tech.",
+    selector: '.fv-trap',
+    declarations: {
+      position: 'absolute',
+      width: '1px',
+      height: '1px',
+      margin: '-1px',
+      overflow: 'hidden',
+      'clip-path': 'inset(50%)',
+      'white-space': 'nowrap',
+    },
   },
   {
     selector: '.fv-field > label:not(.fv-option), .fv-field > legend',
@@ -142,9 +157,11 @@ export const BASE_RULES: readonly Rule[] = [
     },
   },
   {
-    comment: 'The message line, its height reserved: no layout shift.',
+    comment:
+      'The message line, its height reserved: a message of that many lines moves nothing; a longer one grows the line and pushes what follows down.',
     selector: '.fv-message',
     declarations: {
+      'overflow-wrap': 'anywhere',
       'min-height':
         'calc(var(--fv-message-size) * var(--fv-message-line) * var(--fv-message-lines))',
       margin: '0',
