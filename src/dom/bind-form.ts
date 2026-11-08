@@ -73,7 +73,13 @@ export interface BoundForm {
    * and the checks here show again what is still wrong. Anything but an array
    * (an answer without `errors`) shows nothing.
    */
-  showErrors(errors: readonly FieldError[] | undefined): void;
+  showErrors(
+    errors:
+      | readonly (Pick<FieldError, 'field' | 'message'> & {
+          readonly stage?: string;
+        })[]
+      | undefined
+  ): void;
   /** Back to neutral: no states, no messages. */
   reset(): void;
   /**
@@ -89,7 +95,8 @@ interface Slot {
   readonly name: string;
   readonly controls: readonly Control[];
   readonly box: HTMLElement;
-  readonly line: HTMLElement;
+  /** None for a honeypot: nothing about it shows. */
+  readonly line: HTMLElement | undefined;
   /** Focused or changed at least once: its state shows. */
   touched: boolean;
   /** Left, changed, submitted or past the pause: unfinished values are errors. */
@@ -178,25 +185,31 @@ export function bindForm<F extends FormFields>(
   for (const name of schema.names) {
     const controls = controlsByName.get(name);
     const first = controls?.[0];
+    const field = schema.fields[name] as FormFields[string];
     if (controls === undefined || first === undefined) continue;
     const box = boxes.get(name) ?? first.parentElement;
     if (box === null) continue;
-    let line = lines.get(name);
-    if (line === undefined) {
+    // a honeypot's value is sent and checked, but nothing about it shows: no
+    // message line inside its label, no state, no focus
+    const trap = [field.type, ...field.bases].includes('honeypot');
+    let line = trap ? undefined : lines.get(name);
+    if (line === undefined && !trap) {
       line = form.ownerDocument.createElement('p');
       line.setAttribute('data-message-for', name);
       box.append(line);
     }
-    line.id ||= `fv${id}-${name}`;
-    for (const control of controls) {
-      const ids = (control.getAttribute('aria-describedby') ?? '').split(
-        /\s+/u
-      );
-      if (!ids.includes(line.id))
-        control.setAttribute(
-          'aria-describedby',
-          [...ids, line.id].join(' ').trim()
+    if (line !== undefined) {
+      const lineId = (line.id ||= `fv${id}-${name}`);
+      for (const control of controls) {
+        const ids = (control.getAttribute('aria-describedby') ?? '').split(
+          /\s+/u
         );
+        if (!ids.includes(lineId))
+          control.setAttribute(
+            'aria-describedby',
+            [...ids, lineId].join(' ').trim()
+          );
+      }
     }
     slots.push({
       name,
@@ -207,7 +220,7 @@ export function bindForm<F extends FormFields>(
       shown: false,
       server: undefined,
       timer: undefined,
-      gates: gatesOf(schema.fields[name] as FormFields[string], gates),
+      gates: gatesOf(field, gates),
       check: undefined,
     });
   }
@@ -286,7 +299,7 @@ export function bindForm<F extends FormFields>(
     view: FormValues
   ) => {
     const field = schema.fields[slot.name];
-    if (field === undefined) return;
+    if (field === undefined || slot.line === undefined) return;
     const active = field.isActive(view);
     let state: 'valid' | 'invalid' | undefined;
     let kind: 'hint' | 'error' | undefined;

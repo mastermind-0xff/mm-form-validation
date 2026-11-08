@@ -4,6 +4,7 @@ import { defineForm } from '../core/define-form.js';
 import { checkbox } from '../types/checkbox.js';
 import { choice, select } from '../types/select.js';
 import { email } from '../types/email.js';
+import { honeypot } from '../types/honeypot.js';
 import { password } from '../types/password.js';
 import { place, text } from '../types/text.js';
 import { bindForm, type BindOptions } from './bind-form.js';
@@ -598,5 +599,70 @@ describe('bindForm: loaded after the user started', () => {
     bind();
     for (const name of schema.names)
       expect(box(name).hasAttribute('data-message')).toBe(false);
+  });
+});
+
+describe('bindForm: a honeypot', () => {
+  const trapped = defineForm({ email: email(), website: honeypot() });
+  const markup = `<div data-field="email"><input name="email"><p data-message-for="email"></p></div>
+    <div class="fv-trap" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
+    <button>Send</button>`;
+
+  beforeEach(() => {
+    document.body.innerHTML = `<form>${markup}</form>`;
+    form = document.querySelector('form')!;
+  });
+
+  it('gets no message line, no state and no describedby', () => {
+    const bound = bindForm(form, trapped);
+    expect(form.querySelectorAll('[data-message-for]')).toHaveLength(1);
+    expect(form.querySelector('label')!.children).toHaveLength(1);
+    control('website').value = 'bot';
+    expect(bound.validate()).toBe(false);
+    expect(control('website').hasAttribute('aria-describedby')).toBe(false);
+    expect(control('website').hasAttribute('aria-invalid')).toBe(false);
+    expect(form.querySelector('label')!.hasAttribute('data-state')).toBe(false);
+    bound.showErrors([{ field: 'website', message: 'No.' }]);
+    expect(form.querySelector('label')!.textContent).toBe('Leave this empty ');
+  });
+
+  it('is sent and checked: filled, the form does not submit', () => {
+    const onSubmit = vi.fn();
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const bound = bindForm(form, trapped, { onSubmit });
+    control('email').value = 'ana@example.com';
+    expect(bound.values()).toEqual({ email: 'ana@example.com', website: '' });
+    form.requestSubmit();
+    expect(onSubmit).toHaveBeenCalledWith(
+      { email: 'ana@example.com', website: '' },
+      expect.anything()
+    );
+    control('website').value = 'bot';
+    expect(bound.values()['website']).toBe('bot');
+    form.requestSubmit();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    // it has a control: nothing to report
+    expect(error).not.toHaveBeenCalled();
+    error.mockRestore();
+  });
+
+  it('ignores a message line the page has for it', () => {
+    form
+      .querySelector('label')!
+      .insertAdjacentHTML('beforeend', '<p data-message-for="website"></p>');
+    const bound = bindForm(form, trapped);
+    control('website').value = 'bot';
+    bound.validate();
+    expect(
+      form.querySelector('[data-message-for="website"]')!.textContent
+    ).toBe('');
+  });
+});
+
+describe('bindForm: showErrors', () => {
+  it('takes errors without a stage', () => {
+    const bound = bind();
+    bound.showErrors([{ field: 'name', message: 'Taken.' }]);
+    expect(line('name')).toBe('Taken.');
   });
 });

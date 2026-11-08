@@ -1,28 +1,48 @@
 /**
- * `honeypot`: a field people don't see, so only a bot fills it (plan §5). It
- * never refuses: the parsed value is `true` when it was filled, and the server
- * decides what to do, usually to answer as if all went well and store nothing.
- * A refusal would tell the bot what to change, and would block a person whose
- * browser filled the field by itself, with an error in a field they can't see.
- * It isn't required, unless a field says so.
+ * `honeypot`: a field people don't see, so only a bot fills it (plan §5, user
+ * D36 2026-11-08). Filled with anything (a string, spaces too, a number,
+ * `true`) it is refused at `rule`, with a message that doesn't tell why;
+ * something no form sends (an object, an array, `null`) fails at `type`. Its
+ * value is always ''. It isn't required, unless a field says so.
+ *
+ * The markup must keep browsers and password managers from filling it, or a
+ * person is refused too: `fieldAttributes` gives the control's attributes, and
+ * the README the wrapper, the name and the label to use (plan §5).
  */
 import { defineType } from '../core/define-type.js';
 import type { FieldType } from '../core/types.js';
 
-const type = /* @__PURE__ */ defineType<object, boolean>({
+const type = /* @__PURE__ */ defineType<object>({
   name: 'honeypot',
   defaults: {},
   read: (raw) => {
-    if (raw === true) return '1';
     if (raw === false || raw === undefined) return '';
-    return typeof raw === 'string' ? raw : undefined;
+    return (
+      typeof raw === 'string' ? raw
+      : typeof raw === 'number' || raw === true ? String(raw)
+      : undefined
+    );
   },
-  value: (value) => value !== '',
-  stages: [],
-  examples: () => ({ valid: ['filled by a bot', ' ', true], invalid: [] }),
+  stages: [
+    {
+      name: 'rule',
+      check: () => ({ message: 'This form could not be sent.' }),
+    },
+  ],
+  examples: () => ({
+    valid: ['', false],
+    invalid: [
+      { value: 'filled by a bot', stage: 'rule' },
+      { value: ' ', stage: 'rule' },
+      { value: 1, stage: 'rule' },
+      { value: 0, stage: 'rule' },
+      { value: true, stage: 'rule' },
+      { value: {}, stage: 'type' },
+    ],
+  }),
 });
 
-export const honeypot: FieldType<object, boolean> =
+export const honeypot: FieldType<object, string> =
   /* @__PURE__ */ Object.assign(
     (options: Parameters<typeof type>[0] = {}) =>
       type({ required: false, ...options }),
