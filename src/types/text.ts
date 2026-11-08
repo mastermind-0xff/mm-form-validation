@@ -18,7 +18,11 @@ export interface TextArgs {
 const FILLERS = ['a', 'x', 'A', '1', 'я'];
 // U+0007 is refused by every named set and survives normalizing
 const BAD = ['\u0007', '<', '@', '_'];
-const NOT_A = { letter: ['.', '-', '1'], digit: ['a', 'x', '.'] } as const;
+const NOT_A = {
+  letter: ['.', '-', '1'],
+  digit: ['a', 'x', '.'],
+  letterOrDigit: ['.', '-', '_'],
+} as const;
 
 /**
  * Examples of a text-like value from its arguments: the shortest and the
@@ -62,7 +66,7 @@ export const text = /* @__PURE__ */ defineType<TextArgs>({
  * the set, the length and the kind allow; `chars` ones the set refuses;
  * `length` and `contains` ones that fail there and nowhere before.
  */
-function samples(
+export function samples(
   valid: readonly string[],
   invalid: readonly { readonly value: string; readonly stage: string }[]
 ) {
@@ -77,11 +81,14 @@ function samples(
       contains: (value) =>
         allowed(value) && fits(args, value) && !hasKind(value),
     };
+    const passes = (value: string) =>
+      allowed(value) && fits(args, value) && hasKind(value);
     return {
-      valid: valid.filter(
-        (value) => allowed(value) && fits(args, value) && hasKind(value)
+      valid: valid.filter(passes),
+      // a later stage (`pattern`, `rule`): reached only past all three
+      invalid: invalid.filter(({ value, stage }) =>
+        (fails[stage] ?? passes)(value)
       ),
-      invalid: invalid.filter(({ value, stage }) => fails[stage]?.(value)),
     };
   };
 }
@@ -113,16 +120,18 @@ export const place = /* @__PURE__ */ preset(text, {
 });
 
 /**
- * A street address: `place` plus `#` `№` `:` `&` `"`, at least 3 characters.
- * No letter needed: a Japanese line is often only numbers ("1-2-3").
+ * A street address: `place` plus `#` `№` `:` `&` `"`, at least 3 characters,
+ * a letter or a digit among them: a Japanese line is often only numbers
+ * ("1-2-3"), and "---" is no address.
  */
 export const streetAddress = /* @__PURE__ */ preset(text, {
   name: 'streetAddress',
-  defaults: { min: 3, max: 255, chars: 'address' },
+  defaults: { min: 3, max: 255, chars: 'address', contains: 'letterOrDigit' },
   examples: /* @__PURE__ */ samples(
     ['ul. Vitosha 1, ap. 4', '221B Baker Street', '1 Rue de l’Église', '1-2-3'],
     [
       { value: '1', stage: 'length' },
+      { value: '- / -', stage: 'contains' },
       { value: 'Main St. <1>', stage: 'chars' },
     ]
   ),

@@ -53,6 +53,8 @@ export function badChar(value: string, set: CharSet): string | undefined {
 export const kinds = {
   letter: /\p{L}/u,
   digit: /\p{Nd}/u,
+  /** An address line may be all digits ("1-2-3"), not all punctuation ("---"). */
+  letterOrDigit: /[\p{L}\p{Nd}]/u,
 } as const;
 
 export type Kind = keyof typeof kinds;

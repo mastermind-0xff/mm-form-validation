@@ -85,7 +85,7 @@ export const contains: Stage<{ readonly contains: Kind | undefined }> = {
     const kind = args.contains;
     if (kind === undefined || kinds[kind].test(value)) return undefined;
     return {
-      message: `Use at least one ${kind}.`,
+      message: `Use at least one ${kind === 'letterOrDigit' ? 'letter or digit' : kind}.`,
       details: { kind },
       incomplete: true,
     };

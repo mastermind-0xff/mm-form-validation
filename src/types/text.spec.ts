@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { typeContract } from '../testing/type-contract.js';
-import { personName, place, streetAddress, text } from './text.js';
+import { personName, place, samples, streetAddress, text } from './text.js';
 
 describe('text', () => {
   for (const c of typeContract(text, [
@@ -128,6 +128,17 @@ describe('streetAddress', () => {
     });
     expect(streetAddress().check('221B Baker Street').state).toBe('valid');
   });
+
+  it('needs a letter or a digit: punctuation alone is no address', () => {
+    for (const junk of ['...', '---', '###', '(/)', '№№№', '´´´', '" " "'])
+      expect(streetAddress().check(junk)).toMatchObject({
+        stage: 'contains',
+        message: 'Use at least one letter or digit.',
+        incomplete: true,
+      });
+    for (const line of ['1-2-3', '2-14', 'ul. 3', 'Ул. Шипка'])
+      expect(streetAddress().check(line).state).toBe('valid');
+  });
 });
 
 describe('presets with other arguments keep their own examples true', () => {
@@ -141,8 +152,23 @@ describe('presets with other arguments keep their own examples true', () => {
   for (const c of typeContract(streetAddress, [
     { chars: 'text' },
     { contains: 'letter' },
+    { contains: undefined },
   ]))
     it(c.name, c.run);
+
+  it('keeps a sample of a later stage when the earlier ones let it through', () => {
+    const examples = samples(
+      ['ok'],
+      [
+        { value: 'reaches', stage: 'rule' },
+        { value: '\u0007', stage: 'rule' },
+        { value: 'x'.repeat(9), stage: 'pattern' },
+      ]
+    );
+    expect(
+      examples({ min: 1, max: 8, chars: 'text', contains: undefined }).invalid
+    ).toEqual([{ value: 'reaches', stage: 'rule' }]);
+  });
 
   it('a Japanese address line of numbers passes', () => {
     expect(streetAddress().check('1-2-3')).toEqual({
