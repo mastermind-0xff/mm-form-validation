@@ -58,20 +58,32 @@ export const text = /* @__PURE__ */ defineType<TextArgs>({
 
 /**
  * Real values of a preset, kept while they still prove their point with the
- * field's arguments: valid ones that fit, `length` ones that don't, `contains`
- * ones that do (`chars` runs first, so those always hold).
+ * field's arguments (`personName({ chars: 'text' })` takes "Ann3"): valid ones
+ * the set, the length and the kind allow; `chars` ones the set refuses;
+ * `length` and `contains` ones that fail there and nowhere before.
  */
 function samples(
   valid: readonly string[],
   invalid: readonly { readonly value: string; readonly stage: string }[]
 ) {
-  return (args: TextArgs): Examples => ({
-    valid: valid.filter((value) => fits(args, value)),
-    invalid: invalid.filter(
-      ({ value, stage }) =>
-        stage === 'chars' || (stage === 'length') !== fits(args, value)
-    ),
-  });
+  return (args: TextArgs): Examples => {
+    const allowed = (value: string) => badChar(value, args.chars) === undefined;
+    const kind = args.contains;
+    const hasKind = (value: string) =>
+      kind === undefined || kinds[kind].test(value);
+    const fails: Readonly<Record<string, (value: string) => boolean>> = {
+      chars: (value) => !allowed(value),
+      length: (value) => allowed(value) && !fits(args, value),
+      contains: (value) =>
+        allowed(value) && fits(args, value) && !hasKind(value),
+    };
+    return {
+      valid: valid.filter(
+        (value) => allowed(value) && fits(args, value) && hasKind(value)
+      ),
+      invalid: invalid.filter(({ value, stage }) => fails[stage]?.(value)),
+    };
+  };
 }
 
 /** First, last or full name: letters of any script, `'` `’` `-` `.` and spaces. */
@@ -100,15 +112,17 @@ export const place = /* @__PURE__ */ preset(text, {
   ),
 });
 
-/** A street address: `place` plus `#` `№` `:` `&` `"`, at least 3 characters and a letter. */
+/**
+ * A street address: `place` plus `#` `№` `:` `&` `"`, at least 3 characters.
+ * No letter needed: a Japanese line is often only numbers ("1-2-3").
+ */
 export const streetAddress = /* @__PURE__ */ preset(text, {
   name: 'streetAddress',
-  defaults: { min: 3, max: 255, chars: 'address', contains: 'letter' },
+  defaults: { min: 3, max: 255, chars: 'address' },
   examples: /* @__PURE__ */ samples(
-    ['ul. Vitosha 1, ap. 4', '221B Baker Street', '1 Rue de l’Église'],
+    ['ul. Vitosha 1, ap. 4', '221B Baker Street', '1 Rue de l’Église', '1-2-3'],
     [
       { value: '1', stage: 'length' },
-      { value: '123', stage: 'contains' },
       { value: 'Main St. <1>', stage: 'chars' },
     ]
   ),

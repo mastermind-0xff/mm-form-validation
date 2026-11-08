@@ -129,3 +129,28 @@ describe('streetAddress', () => {
     expect(streetAddress().check('221B Baker Street').state).toBe('valid');
   });
 });
+
+describe('presets with other arguments keep their own examples true', () => {
+  for (const c of typeContract(personName, [
+    { chars: 'text' },
+    { chars: 'place', contains: undefined },
+  ]))
+    it(c.name, c.run);
+  for (const c of typeContract(place, [{ chars: 'text', contains: undefined }]))
+    it(c.name, c.run);
+  for (const c of typeContract(streetAddress, [
+    { chars: 'text' },
+    { contains: 'letter' },
+  ]))
+    it(c.name, c.run);
+
+  it('a Japanese address line of numbers passes', () => {
+    expect(streetAddress().check('1-2-3')).toEqual({
+      state: 'valid',
+      value: '1-2-3',
+    });
+    expect(streetAddress({ contains: 'letter' }).check('1-2-3')).toMatchObject({
+      stage: 'contains',
+    });
+  });
+});
