@@ -123,8 +123,9 @@ arguments `type`, `inputmode`, `autocapitalize`, `spellcheck` (a preset gets its
 type's). `values` are the raw values the page starts with; `when`, `required` and the
 arguments see them as the checks do (`form.view`). It gives no `maxlength`: browsers count
 UTF-16 units, the checks count code points, and a hard limit cuts a pasted value without
-a word where the field would say "At most 100 characters (now 104).". A page bundle that
-doesn't import it doesn't carry it.
+a word where the field would say "At most 100 characters (now 104).". `true` stands for
+an attribute without a value (`required`, `inert`). A page bundle that doesn't import it
+doesn't carry it.
 
 ```js
 import { fieldAttributes } from '@mmutils/form-validation';
@@ -158,10 +159,10 @@ browsers and password managers away from it:
 
 ```html
 <div class="fv-trap" aria-hidden="true">
-  <label for="hp-extra">Leave this empty</label>
+  <label for="extra-note">Leave this empty</label>
   <input
-    id="hp-extra"
-    name="extra_hp"
+    id="extra-note"
+    name="extra_note"
     autocomplete="off"
     tabindex="-1"
     inert
@@ -182,35 +183,58 @@ browsers and password managers away from it:
 - Chrome ignores `autocomplete="off"` when the name, id or label looks like something
   it can fill. Name it so no autofill guesses anything: no `name`, `email`, `phone`,
   `tel`, `address`, `street`, `city`, `zip`, `company`, `url`, `website`, `user`, `login`
-  or `password` in its name, id or label.
+  or `password` in its name, id or label. Nor `hp`, `honeypot`, `trap`, `bot` or `spam`,
+  which tell bots what it is.
 - `.fv-trap` (in the generated CSS) clips it to one pixel out of sight. Not `hidden`,
   `display: none` or `type="hidden"`, which bots skip. `aria-hidden` on the wrapper keeps
   the label from screen readers.
 - `bindForm` sends and checks its value but shows nothing about it: no message line
   (none is created inside its label), no state. A filled one stops the submit without a
   word, as the server would refuse it.
+- The server's `errors` name the field that was refused. Answer a refused honeypot
+  without them, so a bot isn't told which field to leave empty:
+
+  ```js
+  const result = form.parse(body);
+  if (!result.ok) {
+    const trap = result.errors.some(
+      ({ field }) => form.fields[field].type === 'honeypot'
+    );
+    return trap ?
+        reply(400, { error: 'invalid_input' })
+      : reply(400, { error: 'invalid_input', errors: result.errors });
+  }
+  ```
+
+- `inert` keeps the control out of reach, not out of the form: a native submit and
+  `new FormData(form)` still send it, so the server sees what a bot wrote into it. A
+  bot that drives a real browser through clicks and keys can't fill it either, and so
+  isn't caught by it; one that sets `.value` or posts the form itself is.
 
 ### Field types
 
-| Type            | Value   | Arguments (defaults)                                                |
-| --------------- | ------- | ------------------------------------------------------------------- |
-| `text`          | string  | `min` 1, `max` 255, `chars` `'text'`, `contains`                    |
-| `personName`    | string  | as `text`: `max` 100, `chars` `'name'`, `contains` a letter         |
-| `place`         | string  | as `text`: `max` 100, `chars` `'place'`, `contains` a letter        |
-| `streetAddress` | string  | as `text`: `min` 3, `chars` `'address'`; no letter needed ("1-2-3") |
-| `multiline`     | string  | `min` 1, `max` 5000, `chars` `'multiline'`, `contains`, `maxLines`  |
-| `select`        | string  | `options`: values, or `{ value, label }`                            |
-| `choice`        | string  | `options`, for radio groups                                         |
-| `checkbox`      | boolean | none; required means it must be ticked                              |
-| `email`         | string  | `min` 1, `max` 254; lower-cased                                     |
-| `password`      | string  | `min` 8, `max` 128; never trimmed                                   |
-| `confirm`       | string  | `of`: the field to match, default `'password'`                      |
-| `vatNumber`     | string  | `country`: ISO 3166-1 alpha-2 (`BG`) or ''; upper-cased, prefixed   |
-| `code`          | string  | `min` 1, `max` 64, `chars` `'code'`, `upper` false; trimmed         |
-| `integer`       | number  | `min`, `max`: values; from a number or digits; empty: `undefined`   |
-| `honeypot`      | string  | none; refuses anything filled in; always ''; not required           |
+| Type            | Value   | Arguments (defaults)                                                            |
+| --------------- | ------- | ------------------------------------------------------------------------------- |
+| `text`          | string  | `min` 1, `max` 255, `chars` `'text'`, `contains`                                |
+| `personName`    | string  | as `text`: `max` 100, `chars` `'name'`, `contains` a letter                     |
+| `place`         | string  | as `text`: `max` 100, `chars` `'place'`, `contains` a letter                    |
+| `streetAddress` | string  | as `text`: `min` 3, `chars` `'address'`, `contains` a letter or digit ("1-2-3") |
+| `multiline`     | string  | `min` 1, `max` 5000, `chars` `'multiline'`, `contains`, `maxLines`              |
+| `select`        | string  | `options`: values, or `{ value, label }`                                        |
+| `choice`        | string  | `options`, for radio groups                                                     |
+| `checkbox`      | boolean | none; required means it must be ticked                                          |
+| `email`         | string  | `min` 1, `max` 254; lower-cased                                                 |
+| `password`      | string  | `min` 8, `max` 128; never trimmed                                               |
+| `confirm`       | string  | `of`: the field to match, default `'password'`; compared as that field reads it |
+| `vatNumber`     | string  | `country`: ISO 3166-1 alpha-2 (`BG`) or ''; upper-cased, prefixed               |
+| `code`          | string  | `min` 1, `max` 64, `chars` `'code'`, `upper` false; trimmed                     |
+| `integer`       | number  | `min`, `max`: values; from a number or digits; empty: `undefined`               |
+| `honeypot`      | string  | none; refuses anything filled in; always ''; not required                       |
 
-Lengths count code points, so an emoji counts once. Character sets: `text`, `multiline`, `name`, `place`, `address`, `digits`, `alnum`, `code`.
+Lengths count code points, so an emoji counts once. Character sets: `text`, `multiline`, `name`, `place`, `address`, `digits`, `alnum`, `code`. Kinds for `contains`: `letter`, `digit`, `letterOrDigit`.
+
+`code({ upper: true })` checks and stores the value in upper case, but the functions of
+the other fields, its own `rule` and a `confirm` of it see it as typed.
 
 Every field also takes:
 
@@ -263,6 +287,9 @@ export const word = defineType({
 
 for (const c of typeContract(word, [{}])) test(c.name, c.run);
 ```
+
+A type may set `required: false` as its fields' default, as `honeypot` does; a preset of
+it keeps that.
 
 `formCases` does the same for a whole form. A form is ready for commit when they pass:
 the sample parses and parses again to the same values; each field's type examples, with
@@ -378,9 +405,13 @@ bindForm(element, billing, { gates: { vies: vatGate() }, onSubmit });
 | Over the limit    | "Try again in 25 s", then asks by itself | refuses the form: never saved unchecked            |
 | VIES is down      | shows the server's answer                | refuses, "try again"                               |
 
-`country` must give an ISO code (`BG`). Anything else, like the name `Bulgaria`, counts
-as outside the EU: only a loose shape is checked and VIES is never asked. If your select
-holds names, map them to codes in the function.
+`country` must give an ISO 3166-1 alpha-2 code in capitals (`BG`; `GR` for Greece, `GB`
+for the United Kingdom), or '' when none is chosen, which checks the number as one from
+outside the EU. Anything else (a name like `Bulgaria`, `bg`, the EU's own `EL` or `UK`,
+a lookup that found nothing) refuses the field at `rule`: "The country must be an ISO
+3166-1 code, like BG.". That is a mistake in the form, not the visitor's, and it shows
+instead of skipping VIES without a word. If your select holds names or ids, map them to
+codes in the function.
 
 Numbers outside the EU pass, as VIES doesn't know them. VIES is often down for one
 country or another; to take the order anyway and check later, give
@@ -412,15 +443,19 @@ export function lateForm(form, loadSchema, onSubmit) {
   let binding;
   let held = false; // one held submit, however often it is clicked
   const bound = () => {
-    binding ??= Promise.all([
+    if (binding) return binding;
+    const loading = Promise.all([
       import('@mmutils/form-validation/dom'),
       loadSchema(),
     ]).then(([{ bindForm }, schema]) => {
       form.removeEventListener('submit', early);
       return bindForm(form, schema, { onSubmit });
     });
-    binding.catch(() => (binding = undefined)); // the next use tries again
-    return binding;
+    // once per load: the next use tries again
+    loading.catch(() => {
+      if (binding === loading) binding = undefined;
+    });
+    return (binding = loading);
   };
   function early(event) {
     event.preventDefault();

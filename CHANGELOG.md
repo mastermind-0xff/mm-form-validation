@@ -4,51 +4,63 @@
 
 Nothing released yet. The plan is in `.claude/plan.md` (local).
 
-Fixes from the aesweets review (2026-11-08):
+Breaking for code written against the `aesweets-integration` branch (aesweets links it
+locally; nothing was published):
 
-- `honeypot` refuses a filled field (any string, spaces too, a number, `true`) at
-  `rule` with "This form could not be sent."; an object, an array or `null` fails at
-  `type`. Its value is always '' (was `true` when filled, never refused).
-  `fieldAttributes` gives it `autocomplete="off"`, `tabindex="-1"`, `inert`,
+- `fieldAttributes(form, name, values)` replaces `fieldAttributes(field, values)`.
+- `integer`'s value type is `number | undefined`: empty and optional gives `undefined`,
+  no longer 0. Narrow it where a number is needed.
+- `honeypot` refuses a filled field (stage `rule`, "This form could not be sent.")
+  instead of passing with the value `true`. Its value is always ''.
+- `fieldAttributes` gives `email` no `type="email"`, only `inputmode="email"`: render
+  the control as `type="text"` (the default).
+- `streetAddress` needs a letter or a digit, no longer a letter: "1-2-3" passes, "---"
+  doesn't.
+- `vatNumber` refuses at `rule` a `country` that is neither '' nor an ISO 3166-1 alpha-2
+  code in capitals ("The country must be an ISO 3166-1 code, like BG."): a name like
+  `Bulgaria`, `bg`, the EU's `EL` and `UK`, or no string at all. Those used to be
+  checked as outside the EU, without VIES.
+
+New since the gates:
+
+- Types: `code` (discount codes, tokens: trimmed, the case kept unless `upper`, which
+  checks `chars` and `length` on the upper-cased value: "ßßß" is "SSSSSS"); `integer` (a
+  whole number between `min` and `max`, from a number or digits; out of range is
+  `incomplete` while more digits could still bring it in, "2" on the way to "25"; the
+  message names only the bounds given; "-0" is 0); `honeypot` (refuses anything filled
+  in: any string, spaces too, a number, `true`; an object, an array or `null` fails at
+  `type`; optional by default, and so is a preset of it).
+- `fieldAttributes(form, name, values)`: what to write on a control, from the schema.
+  `when`, `required` and the arguments see `values` as the checks do (`form.view`). By
+  type and arguments: `email` `inputmode="email"`; `password` `type="password"`;
+  `confirm` those of the field in `of`; `code` `autocapitalize="characters"` only with
+  `upper` (else `none`); `integer` `inputmode="numeric"` only when `min` is 0 or more;
+  a preset its base type's; a honeypot `autocomplete="off"`, `tabindex="-1"`, `inert`,
   `aria-hidden` and the password managers' opt-outs (`data-1p-ignore`,
-  `data-lpignore`, `data-bwignore`, `data-form-type="other"`); the generated CSS has
-  `.fv-trap` for its wrapper. `bindForm` sends and checks it but creates no message
-  line inside its label and shows no state.
-- `fieldAttributes(form, name, values)` replaces `fieldAttributes(field, values)`:
-  `when` and `required` run on `form.view(values)`, as the checks see them. The
-  attributes follow the field's arguments: `confirm` gets those of the field in `of`,
-  `code` gets `autocapitalize="characters"` only with `upper` (else `none`),
-  `integer` gets `inputmode="numeric"` only when `min` is 0 or more. A preset gets its
-  base type's. `email` no longer gets `type="email"` (the browser's own e-mail rules),
-  only `inputmode="email"`.
-- Fields have `bases`: the types a preset was made from, nearest first.
-- `integer`: empty and optional gives `undefined`, not 0 (the value type is
-  `number | undefined`). Out of range is `incomplete` while more digits could still
-  bring it into range ("2" on the way to "25"). The message names only the bounds
-  given: "Enter a number of at least 1.", "Enter a number of at most 9.".
-- `code({ upper: true })` checks `chars` and `length` on the upper-cased value
-  ("ßßß" is "SSSSSS").
-- `vatNumber` refuses at `rule` a `country` that is neither '' nor two capital
-  letters (ISO 3166-1 alpha-2): "The country must be an ISO 3166-1 code, like BG.".
-  Names and lower case used to count as outside the EU.
-- `streetAddress` no longer needs a letter: Japanese lines are often "1-2-3".
-  `personName`, `place` and `streetAddress` keep only the examples that hold with the
-  field's own `chars` and `contains`.
-- `formCases`: "inactive in this sample" asks only about that field (junk in it may
-  switch on another field that reads it); a field's own `rule` excuses a refused
-  example only when it is that rule that refuses it. `typeContract` takes an empty
-  result for a valid example of an optional field (`honeypot`).
-- `showErrors` takes errors without `stage`.
-- The message line wraps long words (`overflow-wrap: anywhere`).
-
-- New types: `code` (discount codes, tokens: trimmed, keeps the case unless `upper`),
-  `integer` (a number between `min` and `max`), `honeypot` (never refuses: the value
-  says whether a bot filled it).
-- `fieldAttributes(field, values)`: what to write on a control, from the schema.
-- `./testing`: `formCases(form, samples)`, the cases of a whole form.
-- `typeContract` reads `max` as a length only for a type with a `length` stage.
+  `data-lpignore`, `data-bwignore`, `data-form-type="other"`).
+- `confirm` compares like with like in a form: the retyped value as the field in `of`
+  reads it, so "Ana@x.com" confirms an e-mail stored as "ana@x.com", while a password
+  must still match exactly. For that, `Field.check` and a stage's `check` get the
+  form's fields as an optional last argument.
+- A type may set the default of `required` (`TypeSpec.required`). Fields have `bases`:
+  the types a preset was made from, nearest first (optional, so a field from an older
+  copy still binds).
+- `contains: 'letterOrDigit'`.
+- `./testing`: `formCases(form, samples)`, the cases of a whole form (an inactive field
+  is asked about alone; a field's own `rule` excuses a refused example only when it is
+  that rule that refuses it). `typeContract` reads `max` as a length only for a type
+  with a `length` stage, and takes an empty result for a valid example of '' or `false`
+  in an optional field.
+- `bindForm` keeps a honeypot's value in `values()` and checks it, but shows nothing
+  about it: no message line, no state; a filled one stops the submit without a word.
+  `showErrors` takes errors without `stage`.
+- The generated CSS: `.fv-trap` for a honeypot's wrapper (one clipped pixel, not
+  `display: none`); the message line wraps long words (`overflow-wrap: anywhere`), and a
+  message longer than its reserved lines grows it and pushes what follows down.
 - `name`, `place` and `address` accept `´` and `` ` ``, as people type an apostrophe
   (Sant´Angelo, L`Aquila).
+- The examples of `personName`, `place` and `streetAddress` keep only the samples that
+  still hold with the field's own `chars` and `contains`.
 
 - Gates: `gates` on any field, functions or names each side implements, run one
   after another after the stages (stage `gate`). `parseAsync(form, body, { gates })`
