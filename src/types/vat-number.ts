@@ -26,12 +26,17 @@ export interface VatNumberArgs {
   readonly country: string;
 }
 
-const ISO = /^[A-Z]{2}$/u;
+// EL and UK are the EU's codes for Greece and the United Kingdom, not ISO ones:
+// EL would check a Greek number as one from outside the EU, and skip VIES
+const ISO = /^(?!EL|UK)[A-Z]{2}$/u;
 const BAD_COUNTRY = 'The country must be an ISO 3166-1 code, like BG.';
 
-/** A country the field can't check against: not '' and not an ISO code. */
-const badCountry = (country: string): boolean =>
-  country !== '' && !ISO.test(country);
+/**
+ * A country the field can't check against: not '' and not an ISO code (also
+ * what isn't a string: a lookup that found nothing, from JavaScript).
+ */
+const badCountry = (country: unknown): boolean =>
+  country !== '' && !(typeof country === 'string' && ISO.test(country));
 
 type Format = readonly [
   national: RegExp,
@@ -166,9 +171,13 @@ export const vatNumber = /* @__PURE__ */ defineType<VatNumberArgs>({
     {
       // the form's mistake, not the visitor's: before anything else
       name: 'rule',
-      check: (_value, { country }) =>
+      // `country` is typed, but a lookup from JavaScript may give anything
+      check: (_value, { country }: { readonly country: unknown }) =>
         badCountry(country) ?
-          { message: BAD_COUNTRY, details: { country: country.slice(0, 40) } }
+          {
+            message: BAD_COUNTRY,
+            details: { country: String(country).slice(0, 40) },
+          }
         : undefined,
     },
     charsStage(() => /[^A-Z0-9]/u),

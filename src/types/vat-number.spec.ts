@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { defineForm } from '../core/define-form.js';
 import { typeContract } from '../testing/type-contract.js';
+import { select } from './select.js';
 import { EU_VAT_FORMATS, sample, vatNumber, vatPrefix } from './vat-number.js';
 
 const EU = Object.keys(EU_VAT_FORMATS);
@@ -137,7 +139,18 @@ describe('vatNumber', () => {
   });
 
   it('refuses a country that is not an ISO 3166-1 alpha-2 code, before anything else', () => {
-    for (const country of ['Bulgaria', 'bg', 'Bg', 'BGR', 'B', '35', ' BG']) {
+    // EL and UK: the EU's own codes for Greece and the United Kingdom
+    for (const country of [
+      'Bulgaria',
+      'bg',
+      'Bg',
+      'BGR',
+      'B',
+      '35',
+      ' BG',
+      'EL',
+      'UK',
+    ]) {
       const field = vatNumber({ country });
       for (const value of ['BG123456789', 'ABC123', '<'])
         expect(field.check(value)).toEqual({
@@ -159,6 +172,36 @@ describe('vatNumber', () => {
         messages: { rule: 'Choose your country first.' },
       }).check('BG123456789')
     ).toMatchObject({ message: 'Choose your country first.' });
+  });
+
+  it('refuses, and does not throw on, a country that is no string (a lookup that found nothing)', () => {
+    const found: readonly unknown[] = [undefined, null, 35, {}];
+    for (const country of found) {
+      const lookup = vatNumber({
+        country: () => country as string,
+      });
+      expect(lookup.check('BG123456789')).toMatchObject({
+        stage: 'rule',
+        message: 'The country must be an ISO 3166-1 code, like BG.',
+      });
+      expect(lookup.hint()).toBeUndefined();
+      expect(lookup.examples().valid).toEqual([]);
+    }
+    const form = defineForm({
+      country: select({ options: ['Bulgaria'] }),
+      vat: vatNumber({
+        country: (v) =>
+          (({ BG: 'BG' }) as Record<string, string>)[
+            String(v['country'])
+          ] as string,
+      }),
+    });
+    expect(
+      form.parse({ country: 'Bulgaria', vat: 'BG123456789' })
+    ).toMatchObject({
+      ok: false,
+      first: { field: 'vat', stage: 'rule' },
+    });
   });
 
   it('checks an empty country, and a code outside the EU, as outside the EU', () => {
