@@ -102,6 +102,7 @@ export function defineType<A extends object, V = string>(
 
     return {
       type: spec.name,
+      bases: spec.bases ?? [],
       options,
       empty,
       view: (raw) => {
@@ -176,6 +177,7 @@ export function preset<A extends object, V>(
   return defineType<A, V>({
     ...base,
     name: options.name,
+    bases: [base.name, ...(base.bases ?? [])],
     defaults: { ...base.defaults, ...options.defaults },
     messages: { ...base.messages, ...options.messages },
     ...(hint && { hint }),

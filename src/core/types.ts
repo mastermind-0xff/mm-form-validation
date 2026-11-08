@@ -80,6 +80,8 @@ export interface Examples {
 /** A field type: what `defineType` turns into a field factory. */
 export interface TypeSpec<A extends object, V> {
   readonly name: string;
+  /** The types it was made from, nearest first (`preset` sets it): `place` → `['text']`. */
+  readonly bases?: readonly string[];
   /** Every argument of the type with its default. */
   readonly defaults: A;
   /** Raw value (form data, JSON) → string; `undefined` fails at `type`. */
@@ -162,6 +164,8 @@ export type FieldOptions<A> = CommonOptions & DynamicArgs<A>;
 /** A field of a form: a type with its arguments and options. */
 export interface Field<V = unknown, A = unknown> {
   readonly type: string;
+  /** The types `type` was made from, nearest first (`place`: `['text']`). */
+  readonly bases: readonly string[];
   readonly options: FieldOptions<A>;
   /** The value when the field is empty or inactive ('' or false). */
   readonly empty: V;
