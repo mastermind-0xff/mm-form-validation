@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { fieldAttributes } from '../core/attributes.js';
 import { defineForm } from '../core/define-form.js';
+import { preset } from '../core/define-type.js';
 import { formCases } from '../testing/form-cases.js';
 import { typeContract } from '../testing/type-contract.js';
 import { email } from './email.js';
@@ -40,6 +42,22 @@ describe('honeypot', () => {
           message: 'This form could not be sent.',
         },
       });
+  });
+
+  it('is optional by its type: a preset of it too, and from JavaScript', () => {
+    const trap = preset(honeypot, { name: 'trap' });
+    const fields = defineForm({
+      email: email(),
+      extra: trap(),
+      again: honeypot({ required: undefined } as unknown as object),
+      strict: honeypot({ required: true }),
+    });
+    expect(trap.spec.required).toBe(false);
+    expect(fields.parse({ email: 'a@example.com' })).toMatchObject({
+      ok: false,
+      errors: [{ field: 'strict', stage: 'required' }],
+    });
+    expect(fieldAttributes(fields, 'extra')).not.toHaveProperty('required');
   });
 
   it('fails at type on what no form sends', () => {

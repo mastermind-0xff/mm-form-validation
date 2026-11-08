@@ -86,6 +86,8 @@ export interface TypeSpec<A extends object, V> {
   readonly bases?: readonly string[];
   /** Every argument of the type with its default. */
   readonly defaults: A;
+  /** The default of a field's `required` option: `true` unless the type says (`honeypot`). */
+  readonly required?: boolean;
   /** Raw value (form data, JSON) → string; `undefined` fails at `type`. */
   readonly read?: (raw: unknown) => string | undefined;
   /** Applied before every check; the server keeps the normalized value. */

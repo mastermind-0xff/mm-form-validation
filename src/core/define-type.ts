@@ -68,7 +68,13 @@ export function defineType<A extends object, V = string>(
     value.length > max * UNITS_PER_CHARACTER;
 
   const factory = (options: FieldOptions<A> = {}): Field<V, A> => {
-    const { required = true, when, messages = {}, hint, rule } = options;
+    const {
+      required = spec.required ?? true,
+      when,
+      messages = {},
+      hint,
+      rule,
+    } = options;
     const given = options as Readonly<Record<string, unknown>>;
     // `view` makes the values: a `max` that depends on them isn't known yet
     const viewMax =
