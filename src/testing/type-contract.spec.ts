@@ -92,6 +92,19 @@ describe('typeContract', () => {
     ]);
   });
 
+  it('takes an empty result only for a valid example meant to be empty', () => {
+    const blank = defineType({
+      name: 'blank',
+      defaults: {},
+      normalize: (value) => value.trim(),
+      stages: [],
+      examples: () => ({ valid: ['', '   '], invalid: [] }),
+    });
+    expect(failures(typeContract(blank, [{ required: false }]))).toEqual([
+      'blank {"required":false}: valid "   " → expected valid, got empty',
+    ]);
+  });
+
   it('catches a type without examples and messages that aren’t one line', () => {
     const lines = defineType({
       name: 'lines',

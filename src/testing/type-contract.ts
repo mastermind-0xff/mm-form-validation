@@ -86,8 +86,14 @@ export function typeContract<A extends object, V>(
     for (const value of examples.valid)
       add(`valid ${show(value)}`, () => {
         const result = field.check(value, values);
-        // a type whose only valid value is empty (`honeypot`), when optional
-        if (result.state === 'empty' && !field.isRequired(values)) return;
+        // a valid example that is meant to be empty (`honeypot`), when optional;
+        // not one that normalizing empties, like '   '
+        if (
+          result.state === 'empty' &&
+          !field.isRequired(values) &&
+          (value === '' || value === false)
+        )
+          return;
         assert(
           result.state === 'valid',
           `expected valid, got ${outcome(result)}`
@@ -152,7 +158,7 @@ export function typeContract<A extends object, V>(
     if (
       typeof max === 'number' &&
       type.spec.stages.some((stage) => stage.name === 'length')
-    )
+    ) {
       add(`a value far over max ${max} fails at length`, () => {
         const result = field.check(' '.repeat(max * 4 + 1), values);
         assert(
@@ -161,10 +167,6 @@ export function typeContract<A extends object, V>(
         );
         assertPlain(result.message);
       });
-    if (
-      typeof max === 'number' &&
-      type.spec.stages.some((stage) => stage.name === 'length')
-    )
       add(`examples reach max ${max} and ${max + 1}`, () => {
         const length = (value: unknown) =>
           typeof value === 'string' ? codePoints(value) : -1;
@@ -180,6 +182,7 @@ export function typeContract<A extends object, V>(
           `no invalid example of ${max + 1} characters at length`
         );
       });
+    }
   }
   return cases;
 }
