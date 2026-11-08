@@ -117,39 +117,98 @@ Send the empty message lines and `hidden` on fields that start inactive, or the 
 shifts when the script runs. The binding sets `required` from the schema when it runs;
 write it in the HTML too if the asterisk must show from the first paint.
 
-`fieldAttributes(field, values)` gives what to write on the control, from the schema, so
-markup and schema can't drift: `required`, and by type `type`, `inputmode`,
-`autocapitalize`, `spellcheck`. `values` are the ones the page starts with. It gives no
-`maxlength`: browsers count UTF-16 units, the checks count code points, and a hard limit
-cuts a pasted value without a word where the field would say "At most 100 characters
-(now 104).". A page bundle that doesn't import it doesn't carry it.
+`fieldAttributes(form, name, values)` gives what to write on a field's control, from the
+schema, so markup and schema can't drift: `required`, and from the type and its
+arguments `type`, `inputmode`, `autocapitalize`, `spellcheck` (a preset gets its base
+type's). `values` are the raw values the page starts with; `when`, `required` and the
+arguments see them as the checks do (`form.view`). It gives no `maxlength`: browsers count
+UTF-16 units, the checks count code points, and a hard limit cuts a pasted value without
+a word where the field would say "At most 100 characters (now 104).". A page bundle that
+doesn't import it doesn't carry it.
 
 ```js
 import { fieldAttributes } from '@mmutils/form-validation';
 
-fieldAttributes(register.fields.email);
-// { required: true, type: 'email', inputmode: 'email', autocapitalize: 'none', spellcheck: 'false' }
+fieldAttributes(register, 'email');
+// { required: true, inputmode: 'email', autocapitalize: 'none', spellcheck: 'false' }
 ```
+
+| Type                                   | Attributes                                                 |
+| -------------------------------------- | ---------------------------------------------------------- |
+| `email`                                | `inputmode="email"`, no capitals, no spellcheck; no `type` |
+| `password`                             | `type="password"`, no capitals, no spellcheck              |
+| `confirm`                              | those of the field named in `of`, and its own `required`   |
+| `personName`, `place`, `streetAddress` | `autocapitalize="words"`, no spellcheck                    |
+| `code`                                 | `autocapitalize="characters"` with `upper`, else `none`    |
+| `vatNumber`                            | `autocapitalize="characters"`, no spellcheck               |
+| `integer`                              | `inputmode="numeric"` when `min` is 0 or more              |
+| `honeypot`                             | see "A honeypot"                                           |
+
+No `type="email"`: it brings the browser's own e-mail rules (a Unicode local part
+refused, the domain turned into punycode in `.value`), a check only the browser runs.
+`inputmode="email"` keeps the e-mail keyboard on phones. Put `autocomplete="email"` on it
+yourself, like every `autocomplete`: it depends on what the field is for. An `integer`
+that may be negative gets no `inputmode`: iOS's numeric keyboard has no minus key.
+
+#### A honeypot
+
+A `honeypot` is a field people don't see: a filled one is refused (stage `rule`, "This
+form could not be sent.", which doesn't say why). People must never fill it, so keep
+browsers and password managers away from it:
+
+```html
+<div class="fv-trap" aria-hidden="true">
+  <label for="hp-extra">Leave this empty</label>
+  <input
+    id="hp-extra"
+    name="extra_hp"
+    autocomplete="off"
+    tabindex="-1"
+    inert
+    aria-hidden="true"
+    data-1p-ignore
+    data-lpignore="true"
+    data-bwignore
+    data-form-type="other"
+  />
+</div>
+```
+
+- The control's attributes are what `fieldAttributes` gives for it: `autocomplete="off"`;
+  `tabindex="-1"` and `inert`, so neither Tab nor a click nor a script can focus it
+  (Chrome's autofill fills only fields that can take focus); the opt-outs of 1Password
+  (`data-1p-ignore`), LastPass (`data-lpignore`), Bitwarden (`data-bwignore`) and
+  Dashlane (`data-form-type="other"`).
+- Chrome ignores `autocomplete="off"` when the name, id or label looks like something
+  it can fill. Name it so no autofill guesses anything: no `name`, `email`, `phone`,
+  `tel`, `address`, `street`, `city`, `zip`, `company`, `url`, `website`, `user`, `login`
+  or `password` in its name, id or label.
+- `.fv-trap` (in the generated CSS) clips it to one pixel out of sight. Not `hidden`,
+  `display: none` or `type="hidden"`, which bots skip. `aria-hidden` on the wrapper keeps
+  the label from screen readers.
+- `bindForm` sends and checks its value but shows nothing about it: no message line
+  (none is created inside its label), no state. A filled one stops the submit without a
+  word, as the server would refuse it.
 
 ### Field types
 
-| Type            | Value   | Arguments (defaults)                                               |
-| --------------- | ------- | ------------------------------------------------------------------ |
-| `text`          | string  | `min` 1, `max` 255, `chars` `'text'`, `contains`                   |
-| `personName`    | string  | as `text`: `max` 100, `chars` `'name'`, `contains` a letter        |
-| `place`         | string  | as `text`: `max` 100, `chars` `'place'`, `contains` a letter       |
-| `streetAddress` | string  | as `text`: `min` 3, `chars` `'address'`, `contains` a letter       |
-| `multiline`     | string  | `min` 1, `max` 5000, `chars` `'multiline'`, `contains`, `maxLines` |
-| `select`        | string  | `options`: values, or `{ value, label }`                           |
-| `choice`        | string  | `options`, for radio groups                                        |
-| `checkbox`      | boolean | none; required means it must be ticked                             |
-| `email`         | string  | `min` 1, `max` 254; lower-cased                                    |
-| `password`      | string  | `min` 8, `max` 128; never trimmed                                  |
-| `confirm`       | string  | `of`: the field to match, default `'password'`                     |
-| `vatNumber`     | string  | `country`: an ISO code; upper-cased, with its prefix               |
-| `code`          | string  | `min` 1, `max` 64, `chars` `'code'`, `upper` false; trimmed        |
-| `integer`       | number  | `min`, `max`: values; from a number or digits; empty gives 0       |
-| `honeypot`      | boolean | none; never refuses, `true` when filled; not required              |
+| Type            | Value   | Arguments (defaults)                                                |
+| --------------- | ------- | ------------------------------------------------------------------- |
+| `text`          | string  | `min` 1, `max` 255, `chars` `'text'`, `contains`                    |
+| `personName`    | string  | as `text`: `max` 100, `chars` `'name'`, `contains` a letter         |
+| `place`         | string  | as `text`: `max` 100, `chars` `'place'`, `contains` a letter        |
+| `streetAddress` | string  | as `text`: `min` 3, `chars` `'address'`; no letter needed ("1-2-3") |
+| `multiline`     | string  | `min` 1, `max` 5000, `chars` `'multiline'`, `contains`, `maxLines`  |
+| `select`        | string  | `options`: values, or `{ value, label }`                            |
+| `choice`        | string  | `options`, for radio groups                                         |
+| `checkbox`      | boolean | none; required means it must be ticked                              |
+| `email`         | string  | `min` 1, `max` 254; lower-cased                                     |
+| `password`      | string  | `min` 8, `max` 128; never trimmed                                   |
+| `confirm`       | string  | `of`: the field to match, default `'password'`                      |
+| `vatNumber`     | string  | `country`: ISO 3166-1 alpha-2 (`BG`) or ''; upper-cased, prefixed   |
+| `code`          | string  | `min` 1, `max` 64, `chars` `'code'`, `upper` false; trimmed         |
+| `integer`       | number  | `min`, `max`: values; from a number or digits; empty: `undefined`   |
+| `honeypot`      | string  | none; refuses anything filled in; always ''; not required           |
 
 Lengths count code points, so an emoji counts once. Character sets: `text`, `multiline`, `name`, `place`, `address`, `digits`, `alnum`, `code`.
 
@@ -178,7 +237,7 @@ valid form submits natively. It returns:
 | `validate()`       | checks everything, shows every problem, focuses the first |
 | `validateAsync()`  | the same, after waiting for the gates                     |
 | `values()`         | the raw values, as a native submit sends them             |
-| `showErrors(errs)` | shows the server's `errors` in the same lines             |
+| `showErrors(errs)` | shows `{ field, message }` errors (the server's) in place |
 | `reset()`          | back to neutral                                           |
 | `destroy()`        | removes the listeners and timers                          |
 
@@ -344,6 +403,51 @@ Use `prefetch`, not `preload`, on a page that doesn't run the code: `preload` is
 high priority and competes with what that page renders. Give the file a long cache
 lifetime and a hash in its name. `bindForm` picks up a field that has focus already.
 
+To keep the package out of the first page load, bind on the first sign of use. A submit
+that comes before the binding waits for it and then goes through it, so the form never
+submits unchecked:
+
+```js
+export function lateForm(form, loadSchema, onSubmit) {
+  let binding;
+  let held = false; // one held submit, however often it is clicked
+  const bound = () => {
+    binding ??= Promise.all([
+      import('@mmutils/form-validation/dom'),
+      loadSchema(),
+    ]).then(([{ bindForm }, schema]) => {
+      form.removeEventListener('submit', early);
+      return bindForm(form, schema, { onSubmit });
+    });
+    binding.catch(() => (binding = undefined)); // the next use tries again
+    return binding;
+  };
+  function early(event) {
+    event.preventDefault();
+    if (held) return;
+    held = true;
+    bound().then(
+      () => form.requestSubmit(event.submitter),
+      () => {
+        held = false; // and say in the page that the form could not load
+      }
+    );
+  }
+  form.addEventListener('submit', early);
+  for (const type of ['focusin', 'pointerdown'])
+    form.addEventListener(type, () => bound().catch(() => {}), {
+      passive: true,
+    });
+  if (form.contains(document.activeElement)) bound().catch(() => {});
+  return {
+    showErrors: (errors) => bound().then((bound) => bound.showErrors(errors)),
+  };
+}
+```
+
+The listeners are not `{ once: true }`, so a load that failed is tried again on the next
+focus or press; a held submit is sent once.
+
 ## Good to know
 
 **On the server**
@@ -372,9 +476,11 @@ lifetime and a hash in its name. `bindForm` picks up a field that has focus alre
   markup decides what is checked. A disabled control sends nothing, so a required
   field that is disabled can never pass: use `when` to switch a field off. Of
   several controls of a name, the last wins.
-- A `honeypot` field has no state to show: it passes, filled or not, and the server
-  reads `true` from its value. Hide it with CSS, not with `hidden` or `type="hidden"`,
-  which bots skip.
+- A `honeypot` field has no state and no message line; filled, it stops the submit
+  (see "A honeypot").
+- A message line keeps the height of `--fv-message-lines` lines (default 1): a message
+  that fits moves nothing; a longer one grows the line and pushes what follows down,
+  and a long word wraps rather than overflow.
 - A checkbox needs no `value`, or one the type reads as ticked (`1`, `on`, `true`).
   With `value="yes"` it fails at `type`, in the browser and on the server.
 - A required field with no control in the page blocks the submit and is reported

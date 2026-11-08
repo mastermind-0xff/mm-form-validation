@@ -4,6 +4,43 @@
 
 Nothing released yet. The plan is in `.claude/plan.md` (local).
 
+Fixes from the aesweets review (2026-11-08):
+
+- `honeypot` refuses a filled field (any string, spaces too, a number, `true`) at
+  `rule` with "This form could not be sent."; an object, an array or `null` fails at
+  `type`. Its value is always '' (was `true` when filled, never refused).
+  `fieldAttributes` gives it `autocomplete="off"`, `tabindex="-1"`, `inert`,
+  `aria-hidden` and the password managers' opt-outs (`data-1p-ignore`,
+  `data-lpignore`, `data-bwignore`, `data-form-type="other"`); the generated CSS has
+  `.fv-trap` for its wrapper. `bindForm` sends and checks it but creates no message
+  line inside its label and shows no state.
+- `fieldAttributes(form, name, values)` replaces `fieldAttributes(field, values)`:
+  `when` and `required` run on `form.view(values)`, as the checks see them. The
+  attributes follow the field's arguments: `confirm` gets those of the field in `of`,
+  `code` gets `autocapitalize="characters"` only with `upper` (else `none`),
+  `integer` gets `inputmode="numeric"` only when `min` is 0 or more. A preset gets its
+  base type's. `email` no longer gets `type="email"` (the browser's own e-mail rules),
+  only `inputmode="email"`.
+- Fields have `bases`: the types a preset was made from, nearest first.
+- `integer`: empty and optional gives `undefined`, not 0 (the value type is
+  `number | undefined`). Out of range is `incomplete` while more digits could still
+  bring it into range ("2" on the way to "25"). The message names only the bounds
+  given: "Enter a number of at least 1.", "Enter a number of at most 9.".
+- `code({ upper: true })` checks `chars` and `length` on the upper-cased value
+  ("ßßß" is "SSSSSS").
+- `vatNumber` refuses at `rule` a `country` that is neither '' nor two capital
+  letters (ISO 3166-1 alpha-2): "The country must be an ISO 3166-1 code, like BG.".
+  Names and lower case used to count as outside the EU.
+- `streetAddress` no longer needs a letter: Japanese lines are often "1-2-3".
+  `personName`, `place` and `streetAddress` keep only the examples that hold with the
+  field's own `chars` and `contains`.
+- `formCases`: "inactive in this sample" asks only about that field (junk in it may
+  switch on another field that reads it); a field's own `rule` excuses a refused
+  example only when it is that rule that refuses it. `typeContract` takes an empty
+  result for a valid example of an optional field (`honeypot`).
+- `showErrors` takes errors without `stage`.
+- The message line wraps long words (`overflow-wrap: anywhere`).
+
 - New types: `code` (discount codes, tokens: trimmed, keeps the case unless `upper`),
   `integer` (a number between `min` and `max`), `honeypot` (never refuses: the value
   says whether a bot filled it).
