@@ -9,7 +9,7 @@ locally; nothing was published):
 
 - `fieldAttributes(form, name, values)` replaces `fieldAttributes(field, values)`.
 - `integer`'s value type is `number | undefined`: empty and optional gives `undefined`,
-  no longer 0. Narrow it where a number is needed.
+  no longer 0. A required one without `when` is typed `number` (above).
 - `honeypot` refuses a filled field (stage `rule`, "This form could not be sent.")
   instead of passing with the value `true`. Its value is always ''.
 - `fieldAttributes` gives `email` no `type="email"`, only `inputmode="email"`: render
@@ -20,6 +20,28 @@ locally; nothing was published):
   code in capitals ("The country must be an ISO 3166-1 code, like BG."): a name like
   `Bulgaria`, `bg`, the EU's `EL` and `UK`, or no string at all. Those used to be
   checked as outside the EU, without VIES.
+
+New since the review of the honeypot (branch `honeypot-autofill`, aesweets D45-D47):
+
+- A honeypot's `autocomplete` is `new-password`, no longer `off`: Firefox's password
+  manager takes a text field with `off` before a password field as the username, hidden
+  or `inert`; one with `new-password` it never does. Chrome ignores `new-password` on a
+  field that isn't a password. Rewrite server-rendered markup (`fieldAttributes` gives it).
+- `bindForm` option `onInvalid(blocked, event)`, called when a submit is blocked (also
+  after gates refused): `blocked.errors` are the refused fields people see with the
+  message each shows; `blocked.trap` is set when a honeypot was filled, with its own
+  message ("This form could not be sent.", `messages.rule` overrides), naming no field.
+  A filled honeypot no longer stops a submit without a word, for pages that listen.
+- A required, always active `integer` is typed `number` in the parsed values (`ValueOf`,
+  `ValuesOf`, `onSubmit`); with `required: false`, a function, or `when`, it stays
+  `number | undefined`. Types only: `Field` has a third parameter (what a valid parse
+  gives), `integer` is an `IntegerType` with two overloads, `ParsedValue` is exported.
+- `./testing`: `trapNameProblem(name)` says why a name is a poor honeypot name (a word
+  autofill matches, or one that tells a bot); `formCases` checks every honeypot's name
+  with it, so a form with a honeypot named `website`, `fax_number` or `email2` fails.
+- README "A honeypot": where it goes (after the real fields, never before a password
+  field), the real fields' `autocomplete` tokens, names to avoid, one name per form,
+  logging refusals on the server, what the browsers and password managers do.
 
 New since the gates:
 
@@ -35,7 +57,7 @@ New since the gates:
   type and arguments: `email` `inputmode="email"`; `password` `type="password"`;
   `confirm` those of the field in `of`; `code` `autocapitalize="characters"` only with
   `upper` (else `none`); `integer` `inputmode="numeric"` only when `min` is 0 or more;
-  a preset its base type's; a honeypot `autocomplete="off"`, `tabindex="-1"`, `inert`,
+  a preset its base type's; a honeypot `autocomplete="new-password"`, `tabindex="-1"`, `inert`,
   `aria-hidden` and the password managers' opt-outs (`data-1p-ignore`,
   `data-lpignore`, `data-bwignore`, `data-form-type="other"`).
 - `confirm` compares like with like in a form: the retyped value as the field in `of`
@@ -52,7 +74,8 @@ New since the gates:
   with a `length` stage, and takes an empty result for a valid example of '' or `false`
   in an optional field.
 - `bindForm` keeps a honeypot's value in `values()` and checks it, but shows nothing
-  about it: no message line, no state; a filled one stops the submit without a word.
+  about it: no message line, no state; a filled one stops the submit (and calls
+  `onInvalid`, above).
   `showErrors` takes errors without `stage`.
 - The generated CSS: `.fv-trap` for a honeypot's wrapper (one clipped pixel, not
   `display: none`); the message line wraps long words (`overflow-wrap: anywhere`), and a

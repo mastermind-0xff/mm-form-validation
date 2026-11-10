@@ -155,54 +155,115 @@ that may be negative gets no `inputmode`: iOS's numeric keyboard has no minus ke
 
 A `honeypot` is a field people don't see: a filled one is refused (stage `rule`, "This
 form could not be sent.", which doesn't say why). People must never fill it, so keep
-browsers and password managers away from it:
+browsers and password managers away from it. A browser that fills it anyway refuses a
+real person, the way a bot is refused. That has happened: Firefox filled a honeypot named
+`website` on a password reset form with the person's saved e-mail.
 
 ```html
-<div class="fv-trap" aria-hidden="true">
-  <label for="extra-note">Leave this empty</label>
+<form>
+  <label for="email">E-mail</label>
+  <input id="email" name="email" autocomplete="username" />
+  <label for="password">Password</label>
   <input
-    id="extra-note"
-    name="extra_note"
-    autocomplete="off"
-    tabindex="-1"
-    inert
-    aria-hidden="true"
-    data-1p-ignore
-    data-lpignore="true"
-    data-bwignore
-    data-form-type="other"
+    id="password"
+    name="password"
+    type="password"
+    autocomplete="new-password"
   />
-</div>
+  <!-- after the real fields -->
+  <div class="fv-trap" aria-hidden="true">
+    <label for="extra-note">Leave this empty</label>
+    <input
+      id="extra-note"
+      name="extra_note"
+      autocomplete="new-password"
+      tabindex="-1"
+      inert
+      aria-hidden="true"
+      data-1p-ignore
+      data-lpignore="true"
+      data-bwignore
+      data-form-type="other"
+    />
+  </div>
+  <button>Create account</button>
+</form>
 ```
 
-- The control's attributes are what `fieldAttributes` gives for it: `autocomplete="off"`;
-  `tabindex="-1"` and `inert`, so neither Tab nor a click nor a script can focus it
-  (Chrome's autofill fills only fields that can take focus); the opt-outs of 1Password
-  (`data-1p-ignore`), LastPass (`data-lpignore`), Bitwarden (`data-bwignore`) and
-  Dashlane (`data-form-type="other"`).
-- Chrome ignores `autocomplete="off"` when the name, id or label looks like something
-  it can fill. Name it so no autofill guesses anything: no `name`, `email`, `phone`,
-  `tel`, `address`, `street`, `city`, `zip`, `company`, `url`, `website`, `user`, `login`
-  or `password` in its name, id or label. Nor `hp`, `honeypot`, `trap`, `bot` or `spam`,
-  which tell bots what it is.
-- `.fv-trap` (in the generated CSS) clips it to one pixel out of sight. Not `hidden`,
-  `display: none` or `type="hidden"`, which bots skip. `aria-hidden` on the wrapper keeps
-  the label from screen readers.
+- **The control's attributes** are what `fieldAttributes` gives for it:
+  - `autocomplete="new-password"`, not `off`. Firefox's password manager takes a text
+    field with `off`, `on` or no `autocomplete` as a possible username, whether it can be
+    seen or not; one with `new-password` it never takes. Chrome's password manager
+    ignores `new-password` on a field that isn't a password.
+  - `tabindex="-1"` and `inert`, so neither Tab nor a click nor a script can focus it.
+    Chrome's autofill doesn't fill a field that can't take focus, and its password
+    manager takes one as the username only when no field that can is there.
+  - `aria-hidden="true"` on the control itself: Firefox's address autofill skips a field
+    with it (it doesn't look at the wrapper), and 1Password asks for it on fields that
+    aren't visible.
+  - The opt-outs of 1Password (`data-1p-ignore`), LastPass (`data-lpignore`), Bitwarden
+    (`data-bwignore`, honored only when its settings allow it) and Dashlane
+    (`data-form-type="other"`).
+- **Put it after the real fields, never before or between the fields of a sign-in or a
+  password form.** Firefox, Chrome and Bitwarden look for the username among the text
+  fields _before_ the first password field. Firefox takes the nearest one unless another
+  looks like a username or an e-mail; it doesn't check whether the field can be seen.
+  Bitwarden falls back to hidden fields when it finds no visible one. A form with only
+  password fields (a reset form) is the worst place: a honeypot before them is the only
+  candidate, most likely how the `website` field above was filled.
+- **Give the real fields their `autocomplete` tokens**, so no heuristic has to guess:
+  `username` or `email` on the account's e-mail, `current-password` on a sign-in
+  password, `new-password` on a new one and its confirmation, and the address and name
+  tokens on billing fields. In Firefox a field with `username` ends the search, and one
+  with `email` wins over the nearest text field.
+- **The name, id and label guess nothing an autofill could fill.** Browsers and password
+  managers match words in them, in many languages, and some form fillers keep a whole
+  contact card: no `name`, `email`, `email2`, `mail`, `phone`, `tel`, `mobile`, `fax`,
+  `address`, `street`, `city`, `town`, `zip`, `postal`, `country`, `state`, `region`,
+  `company`, `organization`, `url`, `website`, `homepage`, `link`, `user`, `login`,
+  `account`, `password`, `pass`, `pin`, `otp`, `code`, `card`, `cc`, `birth`, `title` or
+  `search`. Nor anything that tells a bot what it is: `hp`, `honeypot`, `trap`, `bot`,
+  `spam`, `fake`, `captcha`, `hidden`, `empty`, `leave`. `fax_number`, suggested
+  elsewhere, is a contact field like any other. `formCases` fails for a honeypot whose
+  name has one of these words; check the id with `trapNameProblem(id)` from
+  `./testing`. The label is read by no one (`aria-hidden`), but autofill reads it too:
+  "Leave this empty" names nothing it fills.
+- **One honeypot name per form, never a name a real field uses**, on that form or anywhere
+  else on the site. Autofill and form history remember values by name: a value typed into
+  a real field of the same name elsewhere is one a browser may offer here. Different names
+  on each form also keep a bot from learning one name for the whole site.
+- `.fv-trap` (in the generated CSS) clips it to one pixel where it stands. Not `hidden`,
+  `display: none` or `type="hidden"`, which bots skip. Not `left: -9999px` either: it
+  hides no better (Bitwarden treats both as hidden) and scrolls a right-to-left page
+  sideways. `aria-hidden` on the wrapper keeps the label from screen readers.
 - `bindForm` sends and checks its value but shows nothing about it: no message line
-  (none is created inside its label), no state. A filled one stops the submit without a
-  word, as the server would refuse it.
+  (none is created inside its label), no state, no focus. A filled one stops the submit
+  and calls `onInvalid` with `trap` set to its message, so the page can say "This form
+  could not be sent." where it says the form's outcome (see "What the binding returns").
+  The field isn't named.
 - The server's `errors` name the field that was refused. Answer a refused honeypot
-  without them, so a bot isn't told which field to leave empty:
+  without them, so a bot isn't told which field to leave empty. And log it: a honeypot
+  refuses silently, so a log is the only way to find out it refuses people. Log that it
+  happened, the form, the time and the browser (user agent), not the value: it may be a
+  person's saved e-mail or password. Whether it looks like an e-mail is worth keeping:
+  bots write anything, autofill writes what it saved.
 
   ```js
   const result = form.parse(body);
   if (!result.ok) {
-    const trap = result.errors.some(
+    const trap = result.errors.find(
       ({ field }) => form.fields[field].type === 'honeypot'
     );
-    return trap ?
-        reply(400, { error: 'invalid_input' })
-      : reply(400, { error: 'invalid_input', errors: result.errors });
+    if (trap) {
+      const value = String(body[trap.field]);
+      log.warn('honeypot', {
+        form: 'register',
+        userAgent: request.headers['user-agent'],
+        looksLikeEmail: value.includes('@'),
+      });
+      return reply(400, { error: 'invalid_input' });
+    }
+    return reply(400, { error: 'invalid_input', errors: result.errors });
   }
   ```
 
@@ -210,6 +271,10 @@ browsers and password managers away from it:
   `new FormData(form)` still send it, so the server sees what a bot wrote into it. A
   bot that drives a real browser through clicks and keys can't fill it either, and so
   isn't caught by it; one that sets `.value` or posts the form itself is.
+- Browsers without `inert` (Chrome before 102, Firefox before 112, Safari before 15.5)
+  rely on the rest. What a saved password or address does to the form can't be tested
+  automatically: try the form once with a password manager and saved addresses before it
+  goes live.
 
 ### Field types
 
@@ -228,10 +293,14 @@ browsers and password managers away from it:
 | `confirm`       | string  | `of`: the field to match, default `'password'`; compared as that field reads it |
 | `vatNumber`     | string  | `country`: ISO 3166-1 alpha-2 (`BG`) or ''; upper-cased, prefixed               |
 | `code`          | string  | `min` 1, `max` 64, `chars` `'code'`, `upper` false; trimmed                     |
-| `integer`       | number  | `min`, `max`: values; from a number or digits; empty: `undefined`               |
+| `integer`       | number  | `min`, `max`: values; from a number or digits; empty: `undefined` (see below)   |
 | `honeypot`      | string  | none; refuses anything filled in; always ''; not required                       |
 
 Lengths count code points, so an emoji counts once. Character sets: `text`, `multiline`, `name`, `place`, `address`, `digits`, `alnum`, `code`. Kinds for `contains`: `letter`, `digit`, `letterOrDigit`.
+
+A required `integer` without `when` is typed `number` in the parsed values; one with
+`required: false`, a function for `required`, or `when` is `number | undefined`, as it
+can be empty or inactive.
 
 `code({ upper: true })` checks and stores the value in upper case, but the functions of
 the other fields, its own `rule` and a `confirm` of it see it as typed.
@@ -253,8 +322,33 @@ read and normalized, not yet checked.
 ### What the binding returns
 
 `bindForm(form, schema, options)` takes `timing` (`'pause'` by default, `'leave'`,
-`'input'`), `pause` (1000 ms), `gates`, `checking` and `onSubmit`. Without `onSubmit`, a
-valid form submits natively. It returns:
+`'input'`), `pause` (1000 ms), `gates`, `checking`, `onSubmit` and `onInvalid`. Without
+`onSubmit`, a valid form submits natively.
+
+`onInvalid(blocked, event)` is called when a submit is blocked, after the fields show
+their messages and the first refused one has focus (also when gates refuse after the
+submit waited for them; `validate()` doesn't call it). It is for the form-level word:
+the refused field reads its own message, so the page needn't repeat it.
+
+- `blocked.errors`: the refused fields people see, in schema order, `{ field, message }`
+  with the message each shows (a server's message still shown, too).
+- `blocked.trap`: set when a honeypot was filled, to its message from the schema ("This
+  form could not be sent.", or its `messages.rule`). The honeypot is never in `errors`
+  and isn't named, so nothing in the page points at it.
+
+```js
+bindForm(formElement, register, {
+  onSubmit: (values) => send(values),
+  onInvalid: ({ errors, trap }) => {
+    if (trap)
+      status.textContent = trap; // nothing to fix that people can see
+    else if (errors.length > 1)
+      status.textContent = 'Please check the marked fields.';
+  },
+});
+```
+
+It returns:
 
 | Method             | Does                                                      |
 | ------------------ | --------------------------------------------------------- |
@@ -295,7 +389,8 @@ it keeps that.
 the sample parses and parses again to the same values; each field's type examples, with
 that field's arguments, pass or fail as they say; a required field emptied fails at
 `required` and an optional one passes; inactive fields are ignored; wrong raw types fail
-cleanly; unknown keys don't reach the values. Gates don't run.
+cleanly; unknown keys don't reach the values; a honeypot's name has no word autofill
+matches (`trapNameProblem`). Gates don't run.
 
 ```js
 import { formCases } from '@mmutils/form-validation/testing';
@@ -511,8 +606,8 @@ focus or press; a held submit is sent once.
   markup decides what is checked. A disabled control sends nothing, so a required
   field that is disabled can never pass: use `when` to switch a field off. Of
   several controls of a name, the last wins.
-- A `honeypot` field has no state and no message line; filled, it stops the submit
-  (see "A honeypot").
+- A `honeypot` field has no state and no message line; filled, it stops the submit and
+  calls `onInvalid` with `trap` (see "A honeypot").
 - A message line keeps the height of `--fv-message-lines` lines (default 1): a message
   that fits moves nothing; a longer one grows the line and pushes what follows down,
   and a long word wraps rather than overflow.
