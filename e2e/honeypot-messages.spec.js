@@ -47,8 +47,10 @@ async function openForm(page) {
             control.setAttribute(key, value === true ? '' : value);
         }
         window.sent = [];
+        window.blocked = [];
         window.bound = bindForm(document.getElementById('f'), schema, {
           onSubmit: (values) => window.sent.push(values),
+          onInvalid: (blocked) => window.blocked.push(blocked),
         });
         window.ready = true;
       </script></body></html>`,
@@ -65,7 +67,7 @@ test.describe('the honeypot', () => {
     await openForm(page);
     const trap = page.locator('[name="extra_hp"]');
     for (const [name, value] of [
-      ['autocomplete', 'off'],
+      ['autocomplete', 'new-password'],
       ['tabindex', '-1'],
       ['inert', ''],
       ['aria-hidden', 'true'],
@@ -110,7 +112,7 @@ test.describe('the honeypot', () => {
     ).toHaveCount(0);
   });
 
-  test('gets no message line, and a filled one stops the submit without a word', async ({
+  test('gets no message line, and a filled one stops the submit: onInvalid says so without naming it', async ({
     page,
   }) => {
     const errors = [];
@@ -130,10 +132,27 @@ test.describe('the honeypot', () => {
       .evaluate((el) => (el.value = 'https://spam.example'));
     await page.locator('.fv-submit').click();
     expect(await page.evaluate(() => window.sent.length)).toBe(1);
+    expect(await page.evaluate(() => window.blocked)).toEqual([
+      { errors: [], trap: 'This form could not be sent.' },
+    ]);
     await expect(page.locator('.fv-trap p')).toHaveCount(0);
     await expect(page.locator('.fv-trap [data-state]')).toHaveCount(0);
     await expect(page.locator('[data-state="invalid"]')).toHaveCount(0);
     expect(errors).toEqual([]);
+    // a field to fix as well: it gets the focus and its message, onInvalid both
+    await page.locator('#email').fill('ana@');
+    await page.locator('.fv-submit').click();
+    await expect(page.locator('#email')).toBeFocused();
+    expect(await page.evaluate(() => window.blocked.at(-1))).toEqual({
+      errors: [
+        {
+          field: 'email',
+          message: 'Enter a valid e-mail, like name@example.com.',
+        },
+      ],
+      trap: 'This form could not be sent.',
+    });
+    expect(await page.evaluate(() => window.sent.length)).toBe(1);
   });
 });
 

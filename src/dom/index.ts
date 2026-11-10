@@ -5,6 +5,7 @@
 export {
   bindForm,
   type BindOptions,
+  type Blocked,
   type BoundForm,
   type Timing,
 } from './bind-form.js';

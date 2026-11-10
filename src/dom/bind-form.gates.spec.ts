@@ -258,13 +258,20 @@ describe('bindForm: gates at submit', () => {
 
   it('blocks on a refusal, marks the field and focuses it', async () => {
     const onSubmit = vi.fn();
-    bind(() => 'Taken.', { onSubmit });
+    const onInvalid = vi.fn();
+    bind(() => 'Taken.', { onSubmit, onInvalid });
     input().value = 'abc';
     submit();
+    expect(onInvalid).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(0);
     expect(onSubmit).not.toHaveBeenCalled();
     expect(line()).toBe('Taken.');
     expect(document.activeElement).toBe(input());
+    expect(onInvalid).toHaveBeenCalledOnce();
+    expect(onInvalid).toHaveBeenCalledWith(
+      { errors: [{ field: 'a', message: 'Taken.' }] },
+      expect.anything()
+    );
   });
 
   it('a second submit while waiting starts nothing', async () => {

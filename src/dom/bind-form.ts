@@ -49,6 +49,29 @@ export interface BindOptions<T> {
    * native submit is prevented). Without it a valid form submits natively.
    */
   readonly onSubmit?: (values: T, event: Event) => void;
+  /**
+   * Called when a submit is blocked (the native submit is prevented), after
+   * the fields show their messages and the first refused one has focus: for a
+   * form-level word, like a status line. Not called by `validate`.
+   */
+  readonly onInvalid?: (blocked: Blocked, event: Event) => void;
+}
+
+/** Why a submit was blocked (`onInvalid`). */
+export interface Blocked {
+  /**
+   * The refused fields people see, in schema order, with the message each
+   * shows (and a required field the page has no control for). A honeypot is
+   * never among them.
+   */
+  readonly errors: readonly Pick<FieldError, 'field' | 'message'>[];
+  /**
+   * Set when a honeypot was filled (a browser's autofill, or a bot): the
+   * form-level message to say, the honeypot's own ("This form could not be
+   * sent.", overridable with its `messages.rule`). It names no field. The
+   * server refuses such a form too.
+   */
+  readonly trap?: string;
 }
 
 export interface BoundForm {
@@ -122,6 +145,11 @@ interface GateCheck {
 
 let forms = 0;
 
+/** A honeypot, or a preset of one: nothing about it shows. */
+const isTrap = (field: FormFields[string] | undefined) =>
+  field !== undefined &&
+  [field.type, ...(field.bases ?? [])].includes('honeypot');
+
 function isControl(element: Element): element is Control {
   return ['INPUT', 'SELECT', 'TEXTAREA'].includes(element.tagName);
 }
@@ -158,6 +186,7 @@ export function bindForm<F extends FormFields>(
     timing = 'pause',
     pause = 1000,
     onSubmit,
+    onInvalid,
     gates,
     checking = 'Checking…',
   } = options;
@@ -191,7 +220,7 @@ export function bindForm<F extends FormFields>(
     if (box === null) continue;
     // a honeypot's value is sent and checked, but nothing about it shows: no
     // message line inside its label, no state, no focus
-    const trap = [field.type, ...(field.bases ?? [])].includes('honeypot');
+    const trap = isTrap(field);
     let line = trap ? undefined : lines.get(name);
     if (line === undefined && !trap) {
       line = form.ownerDocument.createElement('p');
@@ -413,21 +442,40 @@ export function bindForm<F extends FormFields>(
     update();
   };
 
-  /** Shows every problem and focuses the first; what the server will accept, if it will. */
-  const check = () => {
+  /**
+   * Shows every problem and focuses the first; what the server will accept, if
+   * it will, else why not.
+   */
+  const check = (): { readonly values: ValuesOf<F> } | Blocked => {
     for (const slot of slots) slot.touched = slot.shown = true;
     update();
     focusFirstError();
     const result = schema.parse(values(), { skipGates: true });
-    if (!result.ok) {
-      // a field the page has no control for: no line to show it in, and without
-      // this a submit button that does nothing and says nothing
-      const lost = result.errors.filter(
-        ({ field }) => !slots.some((slot) => slot.name === field)
-      );
-      if (lost.length > 0) console.error('bindForm: no control for', lost);
-    }
-    return result.ok && !slots.some(isRed) ? result : undefined;
+    const errors = result.ok ? [] : result.errors;
+    // a field the page has no control for: no line to show it in, and without
+    // this a submit button that does nothing and says nothing
+    const lost = errors.filter(
+      ({ field }) => !slots.some((slot) => slot.name === field)
+    );
+    if (lost.length > 0) console.error('bindForm: no control for', lost);
+    const red = slots.filter(isRed);
+    if (result.ok && red.length === 0) return result;
+    const trap = errors.find(({ field }) => isTrap(schema.fields[field]));
+    return {
+      errors: [
+        ...red.map(({ name, line }) => ({
+          field: name,
+          message: line?.textContent ?? '',
+        })),
+        ...lost,
+      ],
+      ...(trap && { trap: trap.message }),
+    };
+  };
+
+  const blocked = (event: Event, result: Blocked) => {
+    event.preventDefault();
+    onInvalid?.(result, event);
   };
 
   /** Runs now every gate that hasn't answered, and waits for them. */
@@ -453,8 +501,8 @@ export function bindForm<F extends FormFields>(
       return;
     }
     const result = check();
-    if (result === undefined) {
-      event.preventDefault();
+    if (!('values' in result)) {
+      blocked(event, result);
       return;
     }
     if (!hasGates) {
@@ -469,7 +517,10 @@ export function bindForm<F extends FormFields>(
       settling = false;
       if (destroyed) return;
       const final = check();
-      if (final === undefined) return;
+      if (!('values' in final)) {
+        blocked(event, final);
+        return;
+      }
       if (onSubmit !== undefined) {
         onSubmit(final.values, event);
         return;
@@ -488,11 +539,11 @@ export function bindForm<F extends FormFields>(
   update();
 
   return {
-    validate: () => check() !== undefined,
+    validate: () => 'values' in check(),
     validateAsync: async () => {
-      if (check() === undefined) return false;
+      if (!('values' in check())) return false;
       await settle();
-      return check() !== undefined;
+      return 'values' in check();
     },
     values,
     showErrors: (errors) => {

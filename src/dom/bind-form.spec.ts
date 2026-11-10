@@ -310,6 +310,51 @@ describe('bindForm: submit, server errors, reset, destroy', () => {
     expect(bound.validate()).toBe(false);
   });
 
+  it('a blocked submit calls onInvalid with what each refused field shows, after focusing the first', () => {
+    const onInvalid = vi.fn(() => {
+      expect(document.activeElement).toBe(control('name'));
+    });
+    const bound = bind({ onInvalid });
+    fill();
+    control('name').value = 'x'.repeat(11);
+    control('terms').checked = false;
+    const event = new Event('submit', { cancelable: true });
+    form.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(onInvalid).toHaveBeenCalledTimes(1);
+    expect(onInvalid).toHaveBeenCalledWith(
+      {
+        errors: [
+          { field: 'name', message: 'At most 10 characters (now 11).' },
+          { field: 'terms', message: 'Please tick this box.' },
+        ],
+      },
+      event
+    );
+    // validate shows and focuses, but says nothing to onInvalid
+    expect(bound.validate()).toBe(false);
+    expect(onInvalid).toHaveBeenCalledTimes(1);
+    // a valid submit doesn't call it
+    control('name').value = 'Ana';
+    control('terms').checked = true;
+    form.requestSubmit();
+    expect(onInvalid).toHaveBeenCalledTimes(1);
+  });
+
+  it("a server's message still shown blocks the submit and is passed on", () => {
+    const onInvalid = vi.fn();
+    const onSubmit = vi.fn();
+    const bound = bind({ onInvalid, onSubmit });
+    fill();
+    bound.showErrors([{ field: 'email', message: 'Taken.' }]);
+    form.requestSubmit();
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onInvalid).toHaveBeenCalledWith(
+      { errors: [{ field: 'email', message: 'Taken.' }] },
+      expect.anything()
+    );
+  });
+
   it('a valid submit calls onSubmit with the parsed values', () => {
     const onSubmit = vi.fn();
     const bound = bind({ onSubmit });
@@ -606,9 +651,9 @@ describe('bindForm: loaded after the user started', () => {
 });
 
 describe('bindForm: a honeypot', () => {
-  const trapped = defineForm({ email: email(), website: honeypot() });
+  const trapped = defineForm({ email: email(), extra_note: honeypot() });
   const markup = `<div data-field="email"><input name="email"><p data-message-for="email"></p></div>
-    <div class="fv-trap" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
+    <div class="fv-trap" aria-hidden="true"><label>Leave this empty <input name="extra_note" tabindex="-1" autocomplete="new-password"></label></div>
     <button>Send</button>`;
 
   beforeEach(() => {
@@ -625,12 +670,12 @@ describe('bindForm: a honeypot', () => {
     const bound = bindForm(form, trapped);
     expect(form.querySelectorAll('[data-message-for]')).toHaveLength(1);
     expect(form.querySelector('label')!.children).toHaveLength(1);
-    control('website').value = 'bot';
+    control('extra_note').value = 'bot';
     expect(bound.validate()).toBe(false);
-    expect(control('website').hasAttribute('aria-describedby')).toBe(false);
-    expect(control('website').hasAttribute('aria-invalid')).toBe(false);
+    expect(control('extra_note').hasAttribute('aria-describedby')).toBe(false);
+    expect(control('extra_note').hasAttribute('aria-invalid')).toBe(false);
     expect(form.querySelector('label')!.hasAttribute('data-state')).toBe(false);
-    bound.showErrors([{ field: 'website', message: 'No.' }]);
+    bound.showErrors([{ field: 'extra_note', message: 'No.' }]);
     expect(form.querySelector('label')!.textContent).toBe('Leave this empty ');
   });
 
@@ -639,29 +684,78 @@ describe('bindForm: a honeypot', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const bound = bindForm(form, trapped, { onSubmit });
     control('email').value = 'ana@example.com';
-    expect(bound.values()).toEqual({ email: 'ana@example.com', website: '' });
+    expect(bound.values()).toEqual({
+      email: 'ana@example.com',
+      extra_note: '',
+    });
     form.requestSubmit();
     expect(onSubmit).toHaveBeenCalledWith(
-      { email: 'ana@example.com', website: '' },
+      { email: 'ana@example.com', extra_note: '' },
       expect.anything()
     );
-    control('website').value = 'bot';
-    expect(bound.values()['website']).toBe('bot');
+    control('extra_note').value = 'bot';
+    expect(bound.values()['extra_note']).toBe('bot');
     form.requestSubmit();
     expect(onSubmit).toHaveBeenCalledTimes(1);
     // it has a control: nothing to report
     expect(error).not.toHaveBeenCalled();
   });
 
+  it("filled, onInvalid gets the honeypot's message and no field", () => {
+    const onInvalid = vi.fn();
+    bindForm(form, trapped, { onInvalid });
+    control('email').value = 'ana@example.com';
+    control('extra_note').value = 'ana@example.com';
+    const event = new Event('submit', { cancelable: true });
+    form.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(onInvalid).toHaveBeenCalledWith(
+      { errors: [], trap: 'This form could not be sent.' },
+      event
+    );
+    // with a field to fix as well: both, and still no word of the honeypot
+    control('email').value = 'ana@';
+    form.requestSubmit();
+    expect(onInvalid).toHaveBeenLastCalledWith(
+      {
+        errors: [
+          {
+            field: 'email',
+            message: 'Enter a valid e-mail, like name@example.com.',
+          },
+        ],
+        trap: 'This form could not be sent.',
+      },
+      expect.anything()
+    );
+    expect(document.activeElement).toBe(control('email'));
+  });
+
+  it("says the honeypot's own message, from the schema", () => {
+    const onInvalid = vi.fn();
+    const own = defineForm({
+      email: email(),
+      extra_note: honeypot({ messages: { rule: 'Please try again later.' } }),
+    });
+    bindForm(form, own, { onInvalid });
+    control('email').value = 'ana@example.com';
+    control('extra_note').value = 'x';
+    form.requestSubmit();
+    expect(onInvalid).toHaveBeenCalledWith(
+      { errors: [], trap: 'Please try again later.' },
+      expect.anything()
+    );
+  });
+
   it('ignores a message line the page has for it', () => {
     form
       .querySelector('label')!
-      .insertAdjacentHTML('beforeend', '<p data-message-for="website"></p>');
+      .insertAdjacentHTML('beforeend', '<p data-message-for="extra_note"></p>');
     const bound = bindForm(form, trapped);
-    control('website').value = 'bot';
+    control('extra_note').value = 'bot';
     bound.validate();
     expect(
-      form.querySelector('[data-message-for="website"]')!.textContent
+      form.querySelector('[data-message-for="extra_note"]')!.textContent
     ).toBe('');
   });
 });
