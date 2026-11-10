@@ -4,10 +4,30 @@
  * (never 0, which the range may refuse and which isn't what was sent).
  */
 import { defineType, readScalar } from '../core/define-type.js';
+import type { Field, FieldOptions, FieldType } from '../core/types.js';
 
 export interface IntegerArgs {
   readonly min: number;
   readonly max: number;
+}
+
+/**
+ * The `integer` factory. Typed only (the same function at run time): a field
+ * that is required and always active parses to a `number`; one that may be
+ * empty (`required: false` or a function) or inactive (`when`) to
+ * `number | undefined`.
+ */
+export interface IntegerType extends FieldType<
+  IntegerArgs,
+  number | undefined
+> {
+  (
+    options?: FieldOptions<IntegerArgs> & {
+      readonly required?: true;
+      readonly when?: undefined;
+    }
+  ): Field<number | undefined, IntegerArgs, number>;
+  (options?: FieldOptions<IntegerArgs>): Field<number | undefined, IntegerArgs>;
 }
 
 const WHOLE = /^-?\d+$/u;
@@ -86,4 +106,4 @@ export const integer = /* @__PURE__ */ defineType<
       ...(min > LOWEST ? [{ value: min - 1, stage: 'rule' }] : []),
     ],
   }),
-});
+}) as IntegerType;

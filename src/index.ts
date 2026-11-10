@@ -48,6 +48,7 @@ export type {
   Invalid,
   Message,
   Messages,
+  ParsedValue,
   Problem,
   Stage,
   TypeSpec,
@@ -68,7 +69,11 @@ export { code, type CodeArgs } from './types/code.js';
 export { confirm, type ConfirmArgs } from './types/confirm.js';
 export { email, type EmailArgs } from './types/email.js';
 export { honeypot } from './types/honeypot.js';
-export { integer, type IntegerArgs } from './types/integer.js';
+export {
+  integer,
+  type IntegerArgs,
+  type IntegerType,
+} from './types/integer.js';
 export { multiline, type MultilineArgs } from './types/multiline.js';
 export { password, type PasswordArgs } from './types/password.js';
 export {

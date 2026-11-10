@@ -3,12 +3,16 @@
  * the server calls `parse` (with gates, `parseAsync` in gates.ts), the browser binding checks
  * one field at a time against the values of the whole form.
  */
-import type { Field, FieldResult, FormValues } from './types.js';
+import type { Field, FieldResult, FormValues, ParsedValue } from './types.js';
 
 export type FormFields = Readonly<Record<string, Field>>;
 
-/** The value type of a field: `string` for `text`, `boolean` for `checkbox`. */
-export type ValueOf<F> = F extends Field<infer V> ? V : never;
+/**
+ * The parsed value type of a field: `string` for `text`, `boolean` for
+ * `checkbox`, `number` for a required `integer` (`number | undefined` for one
+ * that may be empty or inactive).
+ */
+export type ValueOf<F> = ParsedValue<F>;
 
 /** The parsed values of a form: every field, inactive and empty ones with their empty value. */
 export type ValuesOf<F extends FormFields> = {

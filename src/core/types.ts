@@ -165,8 +165,17 @@ export type DynamicArgs<A> = { readonly [K in keyof A]?: Dynamic<A[K]> };
 
 export type FieldOptions<A> = CommonOptions & DynamicArgs<A>;
 
-/** A field of a form: a type with its arguments and options. */
-export interface Field<V = unknown, A = unknown> {
+/** Type only, never set at run time (`Field`'s `P`). */
+declare const parsed: unique symbol;
+
+/**
+ * A field of a form: a type with its arguments and options. `V` is its value,
+ * empty and inactive ones included; `P` what a valid parse gives, when that is
+ * narrower (a required `integer`: `number`, never `undefined`).
+ */
+export interface Field<V = unknown, A = unknown, P = V> {
+  /** Type only, never set: carries `P` for `ValueOf`. */
+  readonly [parsed]?: () => P;
   readonly type: string;
   /**
    * The types `type` was made from, nearest first (`place`: `['text']`).
@@ -195,6 +204,10 @@ export interface Field<V = unknown, A = unknown> {
   ): FieldResult<V>;
   examples(values?: FormValues): Examples;
 }
+
+/** What a valid parse of the field `F` gives (`Field`'s `P`). */
+export type ParsedValue<F> =
+  F extends { readonly [parsed]?: () => infer P } ? P : never;
 
 /** A field factory made by `defineType`: `text({ max: 100 })`. */
 export interface FieldType<A extends object, V> {

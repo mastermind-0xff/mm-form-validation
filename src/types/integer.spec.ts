@@ -1,9 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import { defineForm } from '../core/define-form.js';
+import {
+  defineForm,
+  type ValueOf,
+  type ValuesOf,
+} from '../core/define-form.js';
+import type { FormValues } from '../core/types.js';
 import { formCases } from '../testing/form-cases.js';
 import { typeContract } from '../testing/type-contract.js';
 import { integer } from './integer.js';
+import { text } from './text.js';
 
 describe('integer', () => {
   for (const c of typeContract(integer, [
@@ -106,5 +112,54 @@ describe('integer', () => {
       stage: 'pattern',
       incomplete: true,
     });
+  });
+});
+
+describe('integer: the parsed value type', () => {
+  const isCompany = (v: FormValues) => v['kind'] === '1';
+  const form = defineForm({
+    kind: text(),
+    count: integer({ min: 1, max: 99 }),
+    plain: integer(),
+    stated: integer({ required: true }),
+    optional: integer({ required: false }),
+    depends: integer({ required: isCompany }),
+    sometimes: integer({ when: isCompany }),
+    either: integer({ required: false as boolean }),
+  });
+  type Values = ValuesOf<typeof form.fields>;
+
+  it('is a number when the field is required and always active', () => {
+    expectTypeOf<Values['count']>().toEqualTypeOf<number>();
+    expectTypeOf<Values['plain']>().toEqualTypeOf<number>();
+    expectTypeOf<Values['stated']>().toEqualTypeOf<number>();
+    expectTypeOf<ValueOf<ReturnType<typeof integer>>>().toEqualTypeOf<
+      number | undefined
+    >();
+  });
+
+  it('may be undefined when the field may be empty or inactive', () => {
+    expectTypeOf<Values['optional']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<Values['depends']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<Values['sometimes']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<Values['either']>().toEqualTypeOf<number | undefined>();
+    // and it is: inactive, or optional and empty
+    const parsed = form.parse({
+      kind: '0',
+      count: 1,
+      plain: 2,
+      stated: 3,
+      depends: '',
+    });
+    expect(parsed.ok && parsed.values).toMatchObject({
+      count: 1,
+      optional: undefined,
+      depends: undefined,
+      sometimes: undefined,
+    });
+  });
+
+  it('leaves the other types as they were', () => {
+    expectTypeOf<Values['kind']>().toEqualTypeOf<string>();
   });
 });
