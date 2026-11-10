@@ -30,12 +30,19 @@ const TRAP_PARTS =
  * browsers' and password managers' autofill heuristics match (`website`,
  * `fax_number`, `email2`, `user`…), so a person's autofill may fill it, or one
  * that tells a bot what it is (`hp`, `honeypot`, `trap`, `leave_empty`).
- * English only: the heuristics also match other languages' words. Check a
- * honeypot's `id` and label with it too (plan §5, README "A honeypot").
+ *
+ * Words are split at `_`, `-`, digits and case (`faxNumber`, `URLField`); the
+ * longer ones are found anywhere, as the heuristics find them (`velocity` has
+ * `city`), the short ones only as whole words (`hotelier` is fine). A word run
+ * together with another (`faxnumber`) isn't seen, and only English words are
+ * known. Check the honeypot's `id` with it too, not its label: the label is
+ * for a person who sees the field without the CSS, and "Leave this empty",
+ * which it refuses, is what they must read (plan §5, README "A honeypot").
  */
 export function trapNameProblem(name: string): string | undefined {
   const words = name
     .replace(/([a-z])([A-Z])/gu, '$1 $2')
+    .replace(/([A-Z])([A-Z][a-z])/gu, '$1 $2')
     .toLowerCase()
     .split(/[^a-z]+/u);
   const word =

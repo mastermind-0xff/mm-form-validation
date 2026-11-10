@@ -32,13 +32,17 @@ New since the review of the honeypot (branch `honeypot-autofill`, aesweets D45-D
   message each shows; `blocked.trap` is set when a honeypot was filled, with its own
   message ("This form could not be sent.", `messages.rule` overrides), naming no field.
   A filled honeypot no longer stops a submit without a word, for pages that listen.
+  The type `Blocked` comes from `./dom`.
 - A required, always active `integer` is typed `number` in the parsed values (`ValueOf`,
   `ValuesOf`, `onSubmit`); with `required: false`, a function, or `when`, it stays
   `number | undefined`. Types only: `Field` has a third parameter (what a valid parse
   gives), `integer` is an `IntegerType` with two overloads, `ParsedValue` is exported.
+  A `preset` of `integer` stays `number | undefined`.
 - `./testing`: `trapNameProblem(name)` says why a name is a poor honeypot name (a word
   autofill matches, or one that tells a bot); `formCases` checks every honeypot's name
   with it, so a form with a honeypot named `website`, `fax_number` or `email2` fails.
+  It splits names at `_`, `-`, digits and case (`faxNumber`, `URLField`); use it on the
+  id too, not on the label ("Leave this empty" is right there).
 - README "A honeypot": where it goes (after the real fields, never before a password
   field), the real fields' `autocomplete` tokens, names to avoid, one name per form,
   logging refusals on the server, what the browsers and password managers do.

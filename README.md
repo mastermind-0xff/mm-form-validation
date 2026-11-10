@@ -194,7 +194,12 @@ real person, the way a bot is refused. That has happened: Firefox filled a honey
   - `autocomplete="new-password"`, not `off`. Firefox's password manager takes a text
     field with `off`, `on` or no `autocomplete` as a possible username, whether it can be
     seen or not; one with `new-password` it never takes. Chrome's password manager
-    ignores `new-password` on a field that isn't a password.
+    ignores `new-password` on a field that isn't a password. Bitwarden counts a text
+    field with `new-password` as a password field (for show-password buttons), but fills
+    only the fields it can see, and a `new-password` one only with a generated password:
+    the honeypot stays empty there too.
+  - No `type`, so a text field. Bitwarden takes a hidden `type="email"` or `type="tel"`
+    field of the same form as the username; a hidden text field it doesn't.
   - `tabindex="-1"` and `inert`, so neither Tab nor a click nor a script can focus it.
     Chrome's autofill doesn't fill a field that can't take focus, and its password
     manager takes one as the username only when no field that can is there.
@@ -208,7 +213,7 @@ real person, the way a bot is refused. That has happened: Firefox filled a honey
   password form.** Firefox, Chrome and Bitwarden look for the username among the text
   fields _before_ the first password field. Firefox takes the nearest one unless another
   looks like a username or an e-mail; it doesn't check whether the field can be seen.
-  Bitwarden falls back to hidden fields when it finds no visible one. A form with only
+  Bitwarden looks at hidden fields too when it offers to save a login. A form with only
   password fields (a reset form) is the worst place: a honeypot before them is the only
   candidate, most likely how the `website` field above was filled.
 - **Give the real fields their `autocomplete` tokens**, so no heuristic has to guess:
@@ -225,9 +230,11 @@ real person, the way a bot is refused. That has happened: Firefox filled a honey
   `search`. Nor anything that tells a bot what it is: `hp`, `honeypot`, `trap`, `bot`,
   `spam`, `fake`, `captcha`, `hidden`, `empty`, `leave`. `fax_number`, suggested
   elsewhere, is a contact field like any other. `formCases` fails for a honeypot whose
-  name has one of these words; check the id with `trapNameProblem(id)` from
-  `./testing`. The label is read by no one (`aria-hidden`), but autofill reads it too:
-  "Leave this empty" names nothing it fills.
+  name has one of these words (the longer ones anywhere, as the heuristics match them:
+  `velocity` has `city`); check the id with `trapNameProblem(id)` from `./testing`. Not
+  the label: screen readers skip it (`aria-hidden`), and a person who sees the field
+  without the CSS must read "Leave this empty", which `trapNameProblem` refuses. Autofill
+  reads the label too, so keep the words of the first list out of it by hand.
 - **One honeypot name per form, never a name a real field uses**, on that form or anywhere
   else on the site. Autofill and form history remember values by name: a value typed into
   a real field of the same name elsewhere is one a browser may offer here. Different names
@@ -249,11 +256,12 @@ real person, the way a bot is refused. That has happened: Firefox filled a honey
   bots write anything, autofill writes what it saved.
 
   ```js
+  // a honeypot, or a preset of one
+  const isTrap = ({ type, bases = [] }) =>
+    [type, ...bases].includes('honeypot');
   const result = form.parse(body);
   if (!result.ok) {
-    const trap = result.errors.find(
-      ({ field }) => form.fields[field].type === 'honeypot'
-    );
+    const trap = result.errors.find(({ field }) => isTrap(form.fields[field]));
     if (trap) {
       const value = String(body[trap.field]);
       log.warn('honeypot', {
@@ -300,7 +308,7 @@ Lengths count code points, so an emoji counts once. Character sets: `text`, `mul
 
 A required `integer` without `when` is typed `number` in the parsed values; one with
 `required: false`, a function for `required`, or `when` is `number | undefined`, as it
-can be empty or inactive.
+can be empty or inactive. A `preset` of `integer` is `number | undefined` either way.
 
 `code({ upper: true })` checks and stores the value in upper case, but the functions of
 the other fields, its own `rule` and a `confirm` of it see it as typed.
@@ -331,7 +339,8 @@ submit waited for them; `validate()` doesn't call it). It is for the form-level 
 the refused field reads its own message, so the page needn't repeat it.
 
 - `blocked.errors`: the refused fields people see, in schema order, `{ field, message }`
-  with the message each shows (a server's message still shown, too).
+  with the message each shows (a server's message still shown, too); then a required
+  field the page has no control for, if any (also reported with `console.error`).
 - `blocked.trap`: set when a honeypot was filled, to its message from the schema ("This
   form could not be sent.", or its `messages.rule`). The honeypot is never in `errors`
   and isn't named, so nothing in the page points at it.

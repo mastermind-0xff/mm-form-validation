@@ -225,6 +225,21 @@ describe('trapNameProblem', () => {
       ['extra_hp', 'hp'],
       ['honeypot', 'honey'],
       ['leave_empty', 'leave'],
+      // the longer words anywhere, as autofill heuristics match them
+      ['velocity', 'city'],
+    ] as const)
+      expect(trapNameProblem(name)).toBe(
+        `"${word}" in "${name}": autofill may fill it, or it tells a bot what it is`
+      );
+  });
+
+  it('splits an acronym from the word after it', () => {
+    for (const [name, word] of [
+      ['URLField', 'url'],
+      ['CCNumber', 'cc'],
+      ['HPField', 'hp'],
+      ['myURL', 'url'],
+      ['FAX2', 'fax'],
     ] as const)
       expect(trapNameProblem(name)).toBe(
         `"${word}" in "${name}": autofill may fill it, or it tells a bot what it is`
@@ -232,7 +247,15 @@ describe('trapNameProblem', () => {
   });
 
   it('takes a name that guesses nothing', () => {
-    for (const name of ['extra_note', 'extraNote', 'remarks', 'hotelier'])
+    for (const name of [
+      'extra_note',
+      'extraNote',
+      'remarks',
+      'hotelier',
+      'XMLNote',
+      'subscribe-extra',
+      'register-extra',
+    ])
       expect(trapNameProblem(name)).toBeUndefined();
   });
 });
