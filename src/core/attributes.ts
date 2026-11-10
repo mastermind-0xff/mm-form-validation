@@ -20,7 +20,13 @@ export interface FieldAttributes {
   readonly inputmode?: 'email' | 'numeric';
   readonly autocapitalize?: 'none' | 'words' | 'characters';
   readonly spellcheck?: 'false';
-  readonly autocomplete?: 'off';
+  /**
+   * A honeypot: `new-password`, not `off`. Firefox's password manager takes a
+   * text field with `off` (or none) as a username, invisible or not; one with
+   * `new-password` it never does. Chrome ignores `new-password` on a field that
+   * isn't a password (plan §5).
+   */
+  readonly autocomplete?: 'new-password';
   readonly tabindex?: '-1';
   /** A honeypot: out of reach of the keyboard, autofill and assistive tech. */
   readonly inert?: true;
@@ -63,7 +69,7 @@ const BY_TYPE: Readonly<Record<string, ByType>> = {
   integer: ({ min }) =>
     typeof min === 'number' && min >= 0 ? { inputmode: 'numeric' } : {},
   honeypot: () => ({
-    autocomplete: 'off',
+    autocomplete: 'new-password',
     tabindex: '-1',
     inert: true,
     'aria-hidden': 'true',

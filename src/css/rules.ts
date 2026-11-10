@@ -63,7 +63,7 @@ export const BASE_RULES: readonly Rule[] = [
   },
   {
     comment:
-      "A honeypot's wrapper: out of sight, 1px and clipped, not display: none, which some bots skip. The markup keeps it from the keyboard, autofill and assistive tech.",
+      "A honeypot's wrapper: out of sight, 1px and clipped where it stands, not display: none, which some bots skip, nor left: -9999px, which scrolls a right-to-left page sideways. The markup keeps it from the keyboard, autofill and assistive tech.",
     selector: '.fv-trap',
     declarations: {
       position: 'absolute',

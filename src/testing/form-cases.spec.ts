@@ -13,7 +13,7 @@ import { password } from '../types/password.js';
 import { choice, select } from '../types/select.js';
 import { personName, place, text } from '../types/text.js';
 import { vatNumber } from '../types/vat-number.js';
-import { formCases } from './form-cases.js';
+import { formCases, trapNameProblem } from './form-cases.js';
 
 const isCompany = (v: FormValues) => v['kind'] === '1';
 
@@ -33,7 +33,7 @@ const billing = defineForm({
   passwordConfirm: confirm(),
   discount: code({ required: false }),
   quantity: integer({ min: 1, max: 99 }),
-  website: honeypot(),
+  extraNote: honeypot(),
   consent: checkbox(),
 });
 
@@ -47,7 +47,7 @@ const person = {
   passwordConfirm: 'long enough',
   discount: '',
   quantity: 2,
-  website: '',
+  extraNote: '',
   consent: true,
 };
 
@@ -129,6 +129,21 @@ describe('formCases', () => {
     ).toEqual(['nothing: listed as invalid']);
   });
 
+  it("fails when a honeypot's name is one autofill guesses or one that says what it is", () => {
+    for (const name of ['website', 'fax_number', 'email2', 'hp', 'leaveEmpty'])
+      expect(
+        failing(
+          formCases(defineForm({ [name]: honeypot() }), {
+            valid: { [name]: '' },
+          })
+        )
+      ).toEqual([
+        `${name} (honeypot): its name guesses nothing autofill fills`,
+      ]);
+    const fine = defineForm({ extra_note: honeypot() });
+    expect(failing(formCases(fine, { valid: { extra_note: '' } }))).toEqual([]);
+  });
+
   it('runs no gates', () => {
     const withGate = defineForm({ email: email({ gates: ['emailFree'] }) });
     expect(
@@ -193,5 +208,31 @@ describe('formCases: confirm', () => {
         })
       )
     ).toEqual([]);
+  });
+});
+
+describe('trapNameProblem', () => {
+  it('names the word autofill matches, or the one that tells a bot', () => {
+    for (const [name, word] of [
+      ['website', 'website'],
+      ['url', 'url'],
+      ['email2', 'mail'],
+      ['phone', 'phone'],
+      ['fax_number', 'fax'],
+      ['companyName', 'company'],
+      ['zip', 'zip'],
+      ['user-id', 'user'],
+      ['extra_hp', 'hp'],
+      ['honeypot', 'honey'],
+      ['leave_empty', 'leave'],
+    ] as const)
+      expect(trapNameProblem(name)).toBe(
+        `"${word}" in "${name}": autofill may fill it, or it tells a bot what it is`
+      );
+  });
+
+  it('takes a name that guesses nothing', () => {
+    for (const name of ['extra_note', 'extraNote', 'remarks', 'hotelier'])
+      expect(trapNameProblem(name)).toBeUndefined();
   });
 });

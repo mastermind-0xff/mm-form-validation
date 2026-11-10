@@ -138,7 +138,7 @@ describe('fieldAttributes', () => {
 
   it('keeps a honeypot away from the keyboard, autofill, password managers and assistive tech', () => {
     expect(of(honeypot())).toEqual({
-      autocomplete: 'off',
+      autocomplete: 'new-password',
       tabindex: '-1',
       inert: true,
       'aria-hidden': 'true',

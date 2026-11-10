@@ -17,6 +17,35 @@ export interface FormSamples {
   readonly invalid?: Readonly<Record<string, readonly unknown[]>>;
 }
 
+/** Whole words of a name, for the short ones that would match inside others. */
+const TRAP_WORDS = new Set(
+  'tel fax zip url web www cc cvc cvv otp pin hp bot pwd org job'.split(' ')
+);
+/** Parts of a name, anywhere in it. */
+const TRAP_PARTS =
+  /name|mail|phone|mobile|cell|addr|street|city|town|postal|postcode|country|state|region|province|company|organi|business|website|homepage|link|user|login|account|pass|birth|card|iban|code|search|title|honey|trap|spam|fake|captcha|hidden|empty|leave/u;
+
+/**
+ * Why `name` is a poor name for a honeypot, or `undefined`: a word in it that
+ * browsers' and password managers' autofill heuristics match (`website`,
+ * `fax_number`, `email2`, `user`…), so a person's autofill may fill it, or one
+ * that tells a bot what it is (`hp`, `honeypot`, `trap`, `leave_empty`).
+ * English only: the heuristics also match other languages' words. Check a
+ * honeypot's `id` and label with it too (plan §5, README "A honeypot").
+ */
+export function trapNameProblem(name: string): string | undefined {
+  const words = name
+    .replace(/([a-z])([A-Z])/gu, '$1 $2')
+    .toLowerCase()
+    .split(/[^a-z]+/u);
+  const word =
+    words.find((w) => TRAP_WORDS.has(w)) ??
+    TRAP_PARTS.exec(words.join(''))?.[0];
+  return word === undefined ? undefined : (
+      `"${word}" in "${name}": autofill may fill it, or it tells a bot what it is`
+    );
+}
+
 /** What can't be a value of any field, not even an inactive one's. */
 const JUNK = '\u0007<junk>';
 
@@ -26,8 +55,8 @@ const JUNK = '\u0007<junk>';
  * arguments, pass or fail as they say; a required field emptied fails at
  * `required` and an optional one passes; inactive fields are ignored; wrong raw
  * types fail cleanly; unknown keys don't reach the values; the listed invalid
- * values fail on their field. Gates don't run here: they belong to the
- * application's own tests.
+ * values fail on their field; a honeypot's name passes `trapNameProblem`.
+ * Gates don't run here: they belong to the application's own tests.
  */
 export function formCases<F extends FormFields>(
   form: Form<F>,
@@ -87,6 +116,12 @@ export function formCases<F extends FormFields>(
   for (const name of form.names) {
     const field = form.fields[name] as Field;
     const label = `${name} (${field.type})`;
+
+    if ([field.type, ...(field.bases ?? [])].includes('honeypot'))
+      add(`${label}: its name guesses nothing autofill fills`, () => {
+        const problem = trapNameProblem(name);
+        assert(problem === undefined, problem ?? '');
+      });
 
     if (!field.isActive(view)) {
       add(`${label}: inactive in this sample, ignored`, () => {

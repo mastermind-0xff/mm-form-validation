@@ -11,33 +11,33 @@ import { honeypot } from './honeypot.js';
 describe('honeypot', () => {
   for (const c of typeContract(honeypot)) it(c.name, c.run);
 
-  const form = defineForm({ email: email(), website: honeypot() });
+  const form = defineForm({ email: email(), extra_note: honeypot() });
 
   it("passes empty or missing, and its value is ''", () => {
     for (const body of [
       { email: 'a@example.com' },
-      { email: 'a@example.com', website: '' },
-      { email: 'a@example.com', website: false },
+      { email: 'a@example.com', extra_note: '' },
+      { email: 'a@example.com', extra_note: false },
     ])
       expect(form.parse(body)).toEqual({
         ok: true,
-        values: { email: 'a@example.com', website: '' },
+        values: { email: 'a@example.com', extra_note: '' },
       });
   });
 
   it('refuses a filled one, without saying why', () => {
-    for (const website of ['x', ' ', 1, 0, -1.5, true])
-      expect(form.parse({ email: 'a@example.com', website })).toEqual({
+    for (const extra_note of ['x', ' ', 1, 0, -1.5, true])
+      expect(form.parse({ email: 'a@example.com', extra_note })).toEqual({
         ok: false,
         errors: [
           {
-            field: 'website',
+            field: 'extra_note',
             stage: 'rule',
             message: 'This form could not be sent.',
           },
         ],
         first: {
-          field: 'website',
+          field: 'extra_note',
           stage: 'rule',
           message: 'This form could not be sent.',
         },
@@ -67,7 +67,7 @@ describe('honeypot', () => {
 
   describe('a form with a honeypot passes its own cases', () => {
     for (const c of formCases(form, {
-      valid: { email: 'a@example.com', website: '' },
+      valid: { email: 'a@example.com', extra_note: '' },
     }))
       it(c.name, c.run);
   });
