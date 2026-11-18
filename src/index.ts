@@ -1,8 +1,7 @@
 /**
- * @mmutils/form-validation: one field schema for the browser and the server
- * (plan `.claude/plan.md`). The core: types, fields, forms, character sets and
- * the built-in field types. The browser binding is `./dom`, the test helpers
- * are `./testing`.
+ * @mmutils/form-validation: one field schema for the browser and the server.
+ * The core: types, fields, forms, character sets and the built-in field types.
+ * The browser binding is `./dom`, the test helpers are `./testing`.
  */
 export {
   defineType,

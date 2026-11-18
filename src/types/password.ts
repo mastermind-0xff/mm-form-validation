@@ -1,5 +1,5 @@
 /**
- * `password`: `min` to `max` code points (aesweets: 8–128). Never
+ * `password`: `min` to `max` code points (default 8–128). Never
  * normalized: spaces at either end are part of the password.
  */
 import { defineType } from '../core/define-type.js';

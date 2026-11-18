@@ -1,6 +1,6 @@
 /**
  * Writes the stylesheet of every look with the default settings to `dist/looks`:
- * what a project links, with its changes from the designer on top (plan §12 F11).
+ * what a project links, with its changes from the designer on top.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { LOOK_NAMES, defaultLook, generateCss } from '../dist/esm/css/index.js';

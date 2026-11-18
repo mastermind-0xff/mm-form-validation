@@ -1,5 +1,5 @@
 /**
- * Named character sets (plan §4.6). Each set is a regex that matches one
+ * Named character sets. Each set is a regex that matches one
  * character the set does **not** allow, so the `chars` stage can name the
  * first offending character. Unicode aware (`u`); inside the classes `-`,
  * `(`, `)` and `/` are escaped, so they also compile with the `v` flag.

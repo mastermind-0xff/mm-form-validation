@@ -1,5 +1,5 @@
 /**
- * The shared stages (plan §4.4). A type lists the ones it needs, in order,
+ * The shared stages. A type lists the ones it needs, in order,
  * and adds its own `rule` or `pattern` stages for what is special about it.
  */
 import {
@@ -93,7 +93,7 @@ export const length: Stage<{ readonly min: number; readonly max: number }> = {
   },
 };
 
-/** Needs one character of a kind: City "1" fails, "Å" passes (plan §4.6). */
+/** Needs one character of a kind: City "1" fails, "Å" passes. */
 export const contains: Stage<{ readonly contains: Kind | undefined }> = {
   name: 'contains',
   check: (value, args) => {

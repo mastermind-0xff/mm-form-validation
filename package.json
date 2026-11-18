@@ -1,9 +1,10 @@
 {
   "name": "@mmutils/form-validation",
   "version": "0.0.0",
-  "description": "One field schema for the browser and the server: typed fields (text, multiline, select, e-mail…) checked in stages with the same code on both sides, live messages in the form, and a test contract for every field type.",
+  "description": "Isomorphic TypeScript form validation: one field schema for the browser and the server, typed fields checked in stages with the same code on both sides, live messages while typing, gates for your own checks, and a test contract for every field type.",
   "keywords": [
     "form",
+    "forms",
     "validation",
     "validator",
     "schema",
@@ -11,42 +12,95 @@
     "browser",
     "server",
     "typescript",
+    "unicode",
+    "honeypot",
+    "vat",
+    "vies",
     "mmutils"
   ],
   "author": "Tihomir Trifonov",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mastermind-0xff/mm-form-validation.git"
+  },
+  "homepage": "https://github.com/mastermind-0xff/mm-form-validation#readme",
+  "bugs": {
+    "url": "https://github.com/mastermind-0xff/mm-form-validation/issues"
+  },
   "type": "module",
   "main": "./dist/cjs/index.cjs",
   "module": "./dist/esm/index.js",
   "types": "./dist/types/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/esm/index.js",
-      "require": "./dist/cjs/index.cjs"
+      "import": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/types/index.d.cts",
+        "default": "./dist/cjs/index.cjs"
+      }
     },
     "./dom": {
-      "types": "./dist/types/dom/index.d.ts",
-      "import": "./dist/esm/dom/index.js",
-      "require": "./dist/cjs/dom/index.cjs"
+      "import": {
+        "types": "./dist/types/dom/index.d.ts",
+        "default": "./dist/esm/dom/index.js"
+      },
+      "require": {
+        "types": "./dist/types/dom/index.d.cts",
+        "default": "./dist/cjs/dom/index.cjs"
+      }
     },
     "./testing": {
-      "types": "./dist/types/testing/index.d.ts",
-      "import": "./dist/esm/testing/index.js",
-      "require": "./dist/cjs/testing/index.cjs"
+      "import": {
+        "types": "./dist/types/testing/index.d.ts",
+        "default": "./dist/esm/testing/index.js"
+      },
+      "require": {
+        "types": "./dist/types/testing/index.d.cts",
+        "default": "./dist/cjs/testing/index.cjs"
+      }
     },
     "./css": {
-      "types": "./dist/types/css/index.d.ts",
-      "import": "./dist/esm/css/index.js",
-      "require": "./dist/cjs/css/index.cjs"
+      "import": {
+        "types": "./dist/types/css/index.d.ts",
+        "default": "./dist/esm/css/index.js"
+      },
+      "require": {
+        "types": "./dist/types/css/index.d.cts",
+        "default": "./dist/cjs/css/index.cjs"
+      }
     },
     "./gates": {
-      "types": "./dist/types/gates/index.d.ts",
-      "import": "./dist/esm/gates/index.js",
-      "require": "./dist/cjs/gates/index.cjs"
+      "import": {
+        "types": "./dist/types/gates/index.d.ts",
+        "default": "./dist/esm/gates/index.js"
+      },
+      "require": {
+        "types": "./dist/types/gates/index.d.cts",
+        "default": "./dist/cjs/gates/index.cjs"
+      }
     },
     "./looks/*": "./dist/looks/*",
     "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "dom": [
+        "./dist/types/dom/index.d.ts"
+      ],
+      "testing": [
+        "./dist/types/testing/index.d.ts"
+      ],
+      "css": [
+        "./dist/types/css/index.d.ts"
+      ],
+      "gates": [
+        "./dist/types/gates/index.d.ts"
+      ]
+    }
   },
   "files": [
     "dist",
@@ -62,7 +116,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "npm run clean && rollup -c && tsc -p tsconfig.build.json && node scripts/build-looks.js",
+    "build": "npm run clean && rollup -c && tsc -p tsconfig.build.json && node scripts/build-looks.js && node scripts/build-cjs-types.js",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -1,6 +1,6 @@
 /**
  * `limitChecks` puts a limit on an expensive gate: the first few checks go, then
- * a cooldown (plan §12 F6). The same value again is answered from memory and
+ * a cooldown. The same value again is answered from memory and
  * costs nothing. Both sides use it: one browser, or one key per caller on a server.
  */
 import type { Gate, GateAnswer, GateContext } from '../core/types.js';

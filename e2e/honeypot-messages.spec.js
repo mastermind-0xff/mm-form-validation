@@ -1,7 +1,7 @@
 /**
- * The honeypot as the README writes it (plan §13, aesweets D36): out of sight,
+ * The honeypot as the README writes it: out of sight,
  * out of the tab order and the accessibility tree, never given a message line,
- * and a filled one stops the submit. And the message line (D38): a message of
+ * and a filled one stops the submit. And the message line: a message of
  * the reserved height moves nothing, a longer one grows the line and pushes the
  * next field down, without overlapping or clipping, at phone width too.
  */

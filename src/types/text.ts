@@ -1,5 +1,5 @@
 /**
- * `text`: one line of text (plan §5), and its presets `personName`, `place`
+ * `text`: one line of text, and its presets `personName`, `place`
  * and `streetAddress`. Whitespace is collapsed and trimmed, the value is NFC.
  */
 import { badChar, kinds, nfc, type CharSet, type Kind } from '../chars.js';

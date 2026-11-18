@@ -1,5 +1,5 @@
 /**
- * `integer`: a whole number between `min` and `max` (plan §5), from a number or
+ * `integer`: a whole number between `min` and `max`, from a number or
  * from digits. The value is a number; empty and optional gives `undefined`
  * (never 0, which the range may refuse and which isn't what was sent).
  */

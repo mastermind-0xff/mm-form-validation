@@ -50,7 +50,9 @@ test('every built module compiles and runs', async ({ page }) => {
   expect(failed).toEqual([]);
 });
 
-test('the regexes the plan warns about work', async ({ page }) => {
+test('the character sets compile with the v flag and work', async ({
+  page,
+}) => {
   await openExamples(page);
   const results = await page.evaluate(async () => {
     const { badChar } = await import('/dist/esm/chars.js');

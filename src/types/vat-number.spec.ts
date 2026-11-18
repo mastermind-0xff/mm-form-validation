@@ -44,7 +44,7 @@ describe('vatNumber', () => {
     expect(vatPrefix('GR')).toBe('EL');
   });
 
-  it('another country’s prefix is an error at once (the aesweets case)', () => {
+  it('another country’s prefix is an error at once (a typo in the country)', () => {
     expect(vatNumber({ country: 'BG' }).check('DE3456789')).toMatchObject({
       stage: 'rule',
       message: 'VAT numbers in this country start with BG.',
