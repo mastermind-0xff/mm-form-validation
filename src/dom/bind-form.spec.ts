@@ -478,6 +478,16 @@ describe('bindForm: submit, server errors, reset, destroy', () => {
     expect(box('name').hasAttribute('data-state')).toBe(false);
   });
 
+  it('after reset, the field that has focus still shows its hint', () => {
+    const bound = bind();
+    type('password', 'abc');
+    bound.reset();
+    expect(box('password').hasAttribute('data-state')).toBe(false);
+    expect(box('password').dataset['message']).toBe('hint');
+    expect(line('password')).toBe('At least 8 characters.');
+    expect(line('name')).toBe('');
+  });
+
   it('skips schema fields without a control and ignores events from other elements', () => {
     const wider = defineForm({ name: text(), extra: text() });
     const bound = bindForm(form, wider);
