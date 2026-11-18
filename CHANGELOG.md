@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- `viesGate`: an answer with `valid: false` and a `userError` other than `INVALID`
+  (`MS_UNAVAILABLE`, `TIMEOUT`, `MS_MAX_CONCURRENT_REQ`…) counts as VIES not answering
+  ("try again", or `acceptWhenDown`), not as "not registered" kept for a day.
+
 ## 0.1.0 (unreleased)
 
 Nothing released yet. The plan is in `.claude/plan.md` (local).

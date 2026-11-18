@@ -89,8 +89,22 @@ export function viesGate(options: ViesOptions = {}): LimitedGate {
         }),
         signal: AbortSignal.timeout(timeout),
       });
-      if (response.ok)
-        ({ valid } = (await response.json()) as { readonly valid?: unknown });
+      if (response.ok) {
+        const answer = (await response.json()) as {
+          readonly valid?: unknown;
+          readonly userError?: unknown;
+        };
+        // `valid: false` with MS_UNAVAILABLE, TIMEOUT, MS_MAX_CONCURRENT_REQ…
+        // is VIES failing, not a verdict: kept for a day, it would refuse a
+        // registered number for everyone
+        const { userError } = answer;
+        if (
+          typeof userError !== 'string' ||
+          userError === 'VALID' ||
+          userError === 'INVALID'
+        )
+          ({ valid } = answer);
+      }
     } catch {
       // no answer: below
     }

@@ -80,6 +80,35 @@ describe('viesGate', () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
+  it.each(['MS_UNAVAILABLE', 'TIMEOUT', 'MS_MAX_CONCURRENT_REQ'])(
+    'takes valid: false with userError %s as no answer, not as a verdict to keep',
+    async (userError) => {
+      let down = true;
+      const fetch = fakeFetch(() =>
+        json(down ? { valid: false, userError } : { valid: true })
+      );
+      const gate = viesGate({ fetch });
+      expect(await gate.for('a')('BG123456789', bg)).toEqual({
+        message: 'The VAT service is not answering. Try again in a minute.',
+        retryAfter: 60_000,
+      });
+      // VIES is back: nobody is told the number is not registered
+      down = false;
+      expect(await gate.for('b')('BG123456789', bg)).toBeUndefined();
+      expect(fetch).toHaveBeenCalledTimes(2);
+    }
+  );
+
+  it.each(['INVALID', undefined, null])(
+    'refuses valid: false with userError %s',
+    async (userError) => {
+      const fetch = fakeFetch(() => json({ valid: false, userError }));
+      expect(await viesGate({ fetch })('BG123456789', bg)).toBe(
+        'This VAT number is not registered.'
+      );
+    }
+  );
+
   it('with acceptWhenDown lets it pass, says so, and asks again next time', async () => {
     const fetch = fakeFetch(() => json({}, 503));
     const acceptWhenDown = vi.fn();
