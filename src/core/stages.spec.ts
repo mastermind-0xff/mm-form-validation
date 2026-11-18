@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   chars,
   charsMessage,
+  charsOf,
+  charsStage,
   contains,
   length,
   lengthMessage,
@@ -26,6 +28,32 @@ describe('stages', () => {
       'Spaces are not allowed.'
     );
     expect(chars.check('A<', { chars: 'name' }, {})?.incomplete).toBeFalsy();
+  });
+
+  it('charsStage and charsOf answer as chars does, by name or by regex', () => {
+    const byName = charsStage<{ set: 'name' | 'code' }>(({ set }) => set);
+    const byRegex = charsStage(() => /[^a-z]/u);
+    const fixed = charsOf(/[^a-z]/u);
+    for (const value of ['ana', 'A<', 'a b', 'a\u0007']) {
+      expect(byName.check(value, { set: 'name' }, {})).toEqual(
+        chars.check(value, { chars: 'name' }, {})
+      );
+      expect(byName.check(value, { set: 'code' }, {})).toEqual(
+        chars.check(value, { chars: 'code' }, {})
+      );
+      expect(fixed.check(value, {}, {})).toEqual(byRegex.check(value, {}, {}));
+    }
+    expect(fixed.name).toBe('chars');
+    expect(fixed.check('aB', {}, {})).toEqual({
+      message: 'The character "B" is not allowed.',
+      details: { char: 'B', shown: '"B"' },
+    });
+    // a regex with the g flag keeps no state between checks
+    const global = charsOf(/[^a-z]/gu);
+    for (let i = 0; i < 4; i++)
+      expect(global.check('a<', {}, {})?.message).toBe(
+        'The character "<" is not allowed.'
+      );
   });
 
   it('length: too short is incomplete, too long is not', () => {
