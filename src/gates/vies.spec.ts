@@ -161,6 +161,29 @@ describe('viesGate', () => {
     });
     expect(await gate('BG123456789', bg)).toBe('Nope.');
   });
+
+  it.each([Infinity, 2 ** 31])(
+    'waits for VIES with a timeout too long for a timer (%s), instead of passing the number unchecked',
+    async (timeout) => {
+      // VIES answers after 20 ms
+      const fetch = vi.fn<Fetch>(
+        (_url, init) =>
+          new Promise((resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => {
+              reject(new Error('aborted'));
+            });
+            setTimeout(() => {
+              resolve(json({ valid: false }));
+            }, 20);
+          })
+      );
+      const acceptWhenDown = vi.fn();
+      expect(
+        await viesGate({ fetch, timeout, acceptWhenDown })('BG123456789', bg)
+      ).toBe('This VAT number is not registered.');
+      expect(acceptWhenDown).not.toHaveBeenCalled();
+    }
+  );
 });
 
 describe('answerVatCheck', () => {
@@ -316,6 +339,28 @@ describe('remoteGate', () => {
         );
         await vi.advanceTimersByTimeAsync(1);
         expect(await answer).toBe('no verdict');
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+  );
+
+  it.each([Infinity, 2 ** 31])(
+    'waits with a timeout too long for a timer (%s), instead of giving up at once',
+    async (timeout) => {
+      vi.useFakeTimers();
+      try {
+        const gate = remoteGate('/free', { fetch: silent(), timeout });
+        const answer = Promise.resolve(
+          gate('a', { values: {}, args: {} })
+        ).then(
+          () => 'answered',
+          () => 'no verdict'
+        );
+        await vi.advanceTimersByTimeAsync(86_400_000);
+        expect(await Promise.race([answer, Promise.resolve('waiting')])).toBe(
+          'waiting'
+        );
       } finally {
         vi.useRealTimers();
       }

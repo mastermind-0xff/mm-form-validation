@@ -38,7 +38,8 @@ export function remoteGate(
       controller.abort();
     };
     const { signal } = context;
-    const timer = setTimeout(stop, timeout);
+    // a timer takes at most 2^31 - 1 ms: a longer one, or Infinity, fires at once
+    const timer = setTimeout(stop, Math.min(timeout, 2_147_483_647));
     signal?.addEventListener('abort', stop);
     if (signal?.aborted) stop();
     try {

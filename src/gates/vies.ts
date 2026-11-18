@@ -87,7 +87,9 @@ export function viesGate(options: ViesOptions = {}): LimitedGate {
           countryCode: value.slice(0, 2),
           vatNumber: value.slice(2),
         }),
-        signal: AbortSignal.timeout(timeout),
+        // at most 2^31 - 1 ms: Infinity throws and a longer one fires at once,
+        // which would pass every number unchecked with `acceptWhenDown`
+        signal: AbortSignal.timeout(Math.min(timeout, 2_147_483_647)),
       });
       if (response.ok) {
         const answer = (await response.json()) as {
