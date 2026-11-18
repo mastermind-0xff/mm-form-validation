@@ -4,35 +4,66 @@ One field schema for the browser and the server. A form is a list of typed
 fields (`text`, `multiline`, `select`, `email`, …) with their own arguments
 (length, allowed characters, options). The same code checks a value while the
 user types and again when the server receives it, so a value the form accepts
-is never refused by the server, and the other way round.
+is never refused by the server, and the other way round. First used on the
+forms of aesweets.com.
 
-- Checks run in stages: required, characters, length, shape, then the type's
-  own rule, then your own gates. Each stage has its own message, so the field
-  can say what is still wrong while the user types.
-- Optional fields are checked like required ones as soon as they hold a
-  value; left empty, they are valid.
-- New field types are small objects: a normalizer, the stages and examples of
-  valid and invalid values.
-- Every type passes the same contract built from its examples.
+## Features
 
-Work in progress: nothing is published yet. Until it is, link a local copy, and build
-it first, because `dist` isn't in git:
+- **One schema, two sides**: the schema is a TypeScript module both sides
+  import. It uses no Node and no DOM APIs, so the core runs unchanged in
+  browsers and in Node.
+- **Checks in stages**: type, required, characters, length, contains, shape,
+  the type's own rule, then your own rule and gates. Each stage has its own
+  message, so the field can say what is still wrong while the user types.
+- **Optional means "empty is valid"**: an optional field is checked like a
+  required one as soon as it holds a value.
+- **Unicode aware**: names and places accept any script, lengths count code
+  points (an emoji counts once), and what nobody can see (zero width
+  characters, bidi controls) is refused with a message that names it.
+- **A browser binding** that validates while the user types, with three
+  timings for when an unfinished value turns red, and sets attributes only:
+  the look is your CSS.
+- **Gates**: checks of your own ("this e-mail is already registered"), sync
+  or async, with a limiter, and a ready-made VAT check against VIES.
+- **Looks**: five ready-made stylesheets, and a designer page (in the
+  repository) that exports the settings, the CSS, and a brief for whoever
+  applies it to a project.
+- **New field types are small objects**: a normalizer, the stages and
+  examples of valid and invalid values. Every type passes the same contract
+  built from its examples, in any test runner.
+- **ESM and CommonJS**, with type declarations, and no runtime dependencies.
+
+## Install
 
 ```sh
-npm install && npm run build                 # here, and again after every change here
-npm install file:../path/to/mm-form-validation   # in the project that uses it
+npm install @mmutils/form-validation
 ```
 
-| Entry                              | Holds                                                                |
-| ---------------------------------- | -------------------------------------------------------------------- |
-| `@mmutils/form-validation`         | `defineForm`, `defineType`, `parseAsync`, the types                  |
-| `@mmutils/form-validation/dom`     | `bindForm`, for the browser                                          |
-| `@mmutils/form-validation/gates`   | `limitChecks`, `remoteGate`, the VAT check                           |
-| `@mmutils/form-validation/testing` | `typeContract`, for any test runner                                  |
-| `@mmutils/form-validation/css`     | the look as settings and the CSS generator                           |
-| `@mmutils/form-validation/looks/*` | `edge.css`, `underline.css`, `outline.css`, `icon.css`, `filled.css` |
+Requires Node.js 22 or newer on the server. There are no runtime dependencies, so
+nothing else is installed with it.
 
-Not built yet: a helper that checks a form's markup against its schema.
+In the browser the code is compiled for ES2022. The newest feature it needs is
+`Object.hasOwn` (Chrome and Edge 93, Firefox 92, Safari 15.4). `bindForm` calls
+`form.requestSubmit` to send a submit it held back for the gates (Safari 16). The
+shipped looks use `:has()` and `color-mix()` (Chrome and Edge 111, Firefox 121, Safari
+16.2); older browsers miss the required asterisk, the icon look's icons and some
+tints. These versions follow from what the code uses: the browser tests run on current
+Chromium, Firefox and WebKit only.
+
+## Entry points
+
+| Entry                              | Holds                                                                                                              |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `@mmutils/form-validation`         | `defineForm`, `defineType`, `preset`, `parseAsync`, `fieldAttributes`, the field types, the stages, character sets |
+| `@mmutils/form-validation/dom`     | `bindForm`, for the browser                                                                                        |
+| `@mmutils/form-validation/gates`   | `limitChecks`, `remoteGate`, the VAT check (`viesGate`, `answerVatCheck`, `vatGate`)                               |
+| `@mmutils/form-validation/testing` | `typeContract`, `formCases`, `trapNameProblem`, for any test runner                                                |
+| `@mmutils/form-validation/css`     | the look as settings and the CSS generator                                                                         |
+| `@mmutils/form-validation/looks/*` | `edge.css`, `underline.css`, `outline.css`, `icon.css`, `filled.css`                                               |
+
+Page bundles stay small: the package is built one file per module, so a bundler
+keeps only the field types a form imports, and `parseAsync`, `fieldAttributes`
+and `./css` are not in the bundle unless imported.
 
 ## A form
 
@@ -56,8 +87,12 @@ export const register = defineForm({
 });
 ```
 
-The server: `register.parse(body)` gives `{ ok: true, values }` (normalized)
-or `{ ok: false, errors, first }`.
+The server: `register.parse(body)` takes a JSON body or
+`Object.fromEntries(formData)` and gives `{ ok: true, values }` (normalized, typed:
+`values.email` is a `string`, `values.consent` a `boolean`) or
+`{ ok: false, errors, first }`. `errors` lists every refused field in schema order,
+each `{ field, stage, message }`; `first` is the first of them. A key that is not a
+field of the form never reaches `values`.
 
 The browser:
 
@@ -68,8 +103,9 @@ bindForm(formElement, register, { onSubmit: (values) => send(values) });
 ```
 
 The binding only sets attributes (`data-state`, `data-message`, `required`,
-`aria-invalid`, `hidden`) and the text of each message line; the page's CSS
-gives the look. Make that CSS in the look designer below, or write your own.
+`aria-invalid`, `aria-describedby`, `hidden`) and the text of each message line; the
+page's CSS gives the look. Link one of the shipped looks, make your own in the look
+designer (below), or write the CSS yourself.
 
 A drop-down is checked by value. The value can be a database id, so a list like the
 countries has one source and the rows store the id:
@@ -82,13 +118,14 @@ select({ options: countries.map((c) => ({ value: c.id, label: c.name })) });
 ### The markup
 
 The server renders the fields. The binding finds a control by `name`, its wrapper by
-`data-field` and its message line by `data-message-for`. The classes belong to the
+`data-field` (else the control's parent) and its message line by `data-message-for`
+(it creates one when the page has none). The classes belong to the
 generated CSS: `fv-box` marks what shows the state.
 
 ```html
 <div class="fv-field" data-field="email">
   <label for="email">E-mail</label>
-  <input class="fv-box" id="email" name="email" type="email" />
+  <input class="fv-box" id="email" name="email" autocomplete="email" />
   <p class="fv-message" data-message-for="email"></p>
 </div>
 
@@ -131,7 +168,7 @@ doesn't carry it.
 import { fieldAttributes } from '@mmutils/form-validation';
 
 fieldAttributes(register, 'email');
-// { required: true, inputmode: 'email', autocapitalize: 'none', spellcheck: 'false' }
+// { inputmode: 'email', autocapitalize: 'none', spellcheck: 'false', required: true }
 ```
 
 | Type                                   | Attributes                                                 |
@@ -246,7 +283,7 @@ real person, the way a bot is refused. That has happened: Firefox filled a honey
 - `bindForm` sends and checks its value but shows nothing about it: no message line
   (none is created inside its label), no state, no focus. A filled one stops the submit
   and calls `onInvalid` with `trap` set to its message, so the page can say "This form
-  could not be sent." where it says the form's outcome (see "What the binding returns").
+  could not be sent." where it says the form's outcome (see "The binding").
   The field isn't named.
 - The server's `errors` name the field that was refused. Answer a refused honeypot
   without them, so a bot isn't told which field to leave empty. And log it: a honeypot
@@ -288,7 +325,7 @@ real person, the way a bot is refused. That has happened: Firefox filled a honey
 
 | Type            | Value   | Arguments (defaults)                                                            |
 | --------------- | ------- | ------------------------------------------------------------------------------- |
-| `text`          | string  | `min` 1, `max` 255, `chars` `'text'`, `contains`                                |
+| `text`          | string  | `min` 1, `max` 255, `chars` `'text'`, `contains`; spaces collapsed, trimmed     |
 | `personName`    | string  | as `text`: `max` 100, `chars` `'name'`, `contains` a letter                     |
 | `place`         | string  | as `text`: `max` 100, `chars` `'place'`, `contains` a letter                    |
 | `streetAddress` | string  | as `text`: `min` 3, `chars` `'address'`, `contains` a letter or digit ("1-2-3") |
@@ -296,15 +333,18 @@ real person, the way a bot is refused. That has happened: Firefox filled a honey
 | `select`        | string  | `options`: values, or `{ value, label }`                                        |
 | `choice`        | string  | `options`, for radio groups                                                     |
 | `checkbox`      | boolean | none; required means it must be ticked                                          |
-| `email`         | string  | `min` 1, `max` 254; lower-cased                                                 |
+| `email`         | string  | `min` 1, `max` 254; trimmed, lower-cased                                        |
 | `password`      | string  | `min` 8, `max` 128; never trimmed                                               |
 | `confirm`       | string  | `of`: the field to match, default `'password'`; compared as that field reads it |
 | `vatNumber`     | string  | `country`: ISO 3166-1 alpha-2 (`BG`) or ''; upper-cased, prefixed               |
 | `code`          | string  | `min` 1, `max` 64, `chars` `'code'`, `upper` false; trimmed                     |
-| `integer`       | number  | `min`, `max`: values; from a number or digits; empty: `undefined` (see below)   |
+| `integer`       | number  | `min`, `max` (any safe integer); from a number or digits; empty: `undefined`    |
 | `honeypot`      | string  | none; refuses anything filled in; always ''; not required                       |
 
-Lengths count code points, so an emoji counts once. Character sets: `text`, `multiline`, `name`, `place`, `address`, `digits`, `alnum`, `code`. Kinds for `contains`: `letter`, `digit`, `letterOrDigit`.
+Lengths count code points, so an emoji counts once. Character sets (`chars`): `text`,
+`multiline`, `name`, `place`, `address`, `digits`, `alnum`, `code`. `text` and `multiline` take any
+printable character; `digits`, `alnum` and `code` are ASCII only. Kinds for `contains`: `letter`, `digit`,
+`letterOrDigit`. `maxLines` limits a `multiline` to that many lines.
 
 A required `integer` without `when` is typed `number` in the parsed values; one with
 `required: false`, a function for `required`, or `when` is `number | undefined`, as it
@@ -327,11 +367,62 @@ Every field also takes:
 Any argument can be a function of the other values too. Those functions see the values
 read and normalized, not yet checked.
 
-### What the binding returns
+### Stages and messages
 
-`bindForm(form, schema, options)` takes `timing` (`'pause'` by default, `'leave'`,
-`'input'`), `pause` (1000 ms), `gates`, `checking`, `onSubmit` and `onInvalid`. Without
-`onSubmit`, a valid form submits natively.
+A value goes through these stages, and the first that fails gives the message and the
+`stage` of the error:
+
+| Stage      | Fails when                                                                                                                        |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `type`     | the raw value can't be read as the type's (an object, `null`: only a hostile client)                                              |
+| `length`   | far over `max` (more than 4 times, in UTF-16 units), before anything is normalized                                                |
+| `required` | the field is required and empty                                                                                                   |
+| `chars`    | a character is not in the set; the message names it                                                                               |
+| `length`   | fewer than `min` or more than `max` code points                                                                                   |
+| `contains` | the value has no character of the kind asked for                                                                                  |
+| `lines`    | a `multiline` has more than `maxLines` lines                                                                                      |
+| `pattern`  | the value doesn't have the type's shape (`email`, `vatNumber`, `integer`)                                                         |
+| `rule`     | the type's own check (`select`, `confirm`, `integer`'s range, `vatNumber`'s country and prefix, `honeypot`) or the field's `rule` |
+| `gate`     | one of the field's gates refused it (below)                                                                                       |
+
+A type lists its own stages in its own order. Each has a default message in English,
+plain text (it goes into `textContent`). Replace one per field with `messages`, by stage
+name, as a string or as a function of the stage's details (`min`, `max`, `count`, `char`…):
+
+```js
+text({
+  max: 100,
+  messages: {
+    required: 'Enter your city.',
+    length: ({ max, count }) => `At most ${max} characters, not ${count}.`,
+  },
+});
+```
+
+A problem is `incomplete` when typing more could still fix it (too short, a shape not
+finished, the start of a password being retyped). The browser shows it as a hint while the
+user types and as an error once the field is left; a problem typing can't fix (a character
+that isn't allowed, too long) is an error at once. `timing` (below) decides when an
+incomplete one turns red.
+
+A field whose `when` is false is inactive: not checked, hidden by the binding, and its
+value in `values` is the type's empty value (`''`, `false`, `undefined`).
+
+### The binding
+
+`bindForm(form, schema, options)` takes `timing`, `pause` (1000 ms), `gates`, `checking`,
+`onSubmit` and `onInvalid`. `onSubmit(values, event)` gets the parsed values of a valid form
+(the native submit is prevented); without it a valid form submits natively.
+
+In every timing a field is checked on each keystroke: it turns green as soon as it is valid,
+a problem typing can't fix is red at once, and a field that has been red updates live.
+`timing` is when an unfinished value (too short, a shape not complete) turns red:
+
+- `'pause'` (the default): when the user stops typing for `pause` ms, or leaves the field;
+- `'leave'`: when the field is left;
+- `'input'`: at once, on every keystroke.
+
+Until then it shows a hint that says what is still missing.
 
 `onInvalid(blocked, event)` is called when a submit is blocked, after the fields show
 their messages and the first refused one has focus (also when gates refuse after the
@@ -391,8 +482,37 @@ export const word = defineType({
 for (const c of typeContract(word, [{}])) test(c.name, c.run);
 ```
 
-A type may set `required: false` as its fields' default, as `honeypot` does; a preset of
-it keeps that.
+What `defineType` takes:
+
+| Property    | Holds                                                                                        |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| `name`      | the type's name (the `type` of its fields)                                                   |
+| `defaults`  | every argument of the type with its default (`{ min: 1, max: 255 }`)                         |
+| `stages`    | the checks after `required`, in order: `{ name, check(value, args, values, fields?) }`       |
+| `examples`  | `(args) => { valid, invalid: [{ value, stage }], values? }`: what `typeContract` runs        |
+| `normalize` | applied before every check; the server keeps the normalized value                            |
+| `read`      | raw value (form data, JSON) to a string; `undefined` fails at `type`                         |
+| `value`     | the normalized string to the field's value (`integer`: a number)                             |
+| `finish`    | a last touch on a valid string, with the arguments (`vatNumber` adds the prefix)             |
+| `messages`  | the type's own default messages by stage (`checkbox`: "Please tick this box.")               |
+| `hint`      | `(args) => text`, shown while the field is focused and empty                                 |
+| `required`  | the default of its fields' `required`, as `honeypot` sets `false`; a preset of it keeps that |
+
+A stage's `check` returns `undefined` when the value passes, or `{ message, details?,
+incomplete? }`. The shared stages are exported: `chars` (and `charsStage` for a set of
+your own), `length`, `contains`, `pattern(regex, message)`, and `plural` for messages.
+
+`preset` makes a type from another with other defaults, the way `place` is made from
+`text`:
+
+```js
+import { preset, text } from '@mmutils/form-validation';
+
+export const zipCode = preset(text, {
+  name: 'zipCode',
+  defaults: { chars: 'digits', min: 4, max: 10 },
+});
+```
 
 `formCases` does the same for a whole form. A form is ready for commit when they pass:
 the sample parses and parses again to the same values; each field's type examples, with
@@ -471,8 +591,15 @@ bindForm(element, register, {
   other values of the form, make them arguments.
 - `limitChecks(gate, { free, cooldown, remember })` limits any expensive gate: the
   first few checks go, then a cooldown; the same value again is answered from memory
-  and doesn't count. `.for(caller)` keeps one limit per caller on a server.
-  `remoteGate` includes it.
+  and doesn't count. `.for(caller)` keeps one limit per caller on a server. Defaults:
+  3 checks, a 30 s cooldown, answers remembered for an hour. `maxEntries` (10,000)
+  bounds the memory, `message(seconds)` words the refusal.
+- `remoteGate(url, options)` is a browser gate that POSTs `{ value }` as JSON to your
+  server and reads `{ "message": string | null, "retryAfter"?: ms }` back. A network
+  error, a non-2xx answer or no answer within `timeout` (15 s) leaves the field
+  neutral: the server decides at submit, and a server that hangs can't hold the submit
+  for good. `options` are those of `limitChecks`, `body(value, context)` for what to
+  send, `timeout` and `fetch`. It includes `limitChecks`.
 
 ### VAT numbers
 
@@ -504,10 +631,11 @@ bindForm(element, billing, { gates: { vies: vatGate() }, onSubmit });
 |                   | Browser (`vatGate`)                      | Server (`viesGate`)                                |
 | ----------------- | ---------------------------------------- | -------------------------------------------------- |
 | Limit             | 3 checks, then 30 s                      | 10 checks a minute per caller, 120 a minute in all |
-| Options           | `free`, `cooldown`                       | `free`, `cooldown`, `perMinute`                    |
+| Options           | `free`, `cooldown`, `timeout`            | `free`, `cooldown`, `perMinute`, `timeout`         |
+| Waits             | 15 s, then no verdict                    | 10 s for VIES, then "VIES is down"                 |
 | Same number again | from memory, for an hour                 | from memory, for a day (`remember`)                |
 | Over the limit    | "Try again in 25 s", then asks by itself | refuses the form: never saved unchecked            |
-| VIES is down      | shows the server's answer                | refuses, "try again"                               |
+| VIES is down      | shows the server's answer                | refuses, "try again" (or `acceptWhenDown`)         |
 
 `country` must give an ISO 3166-1 alpha-2 code in capitals (`BG`; `GR` for Greece, `GB`
 for the United Kingdom), or '' when none is chosen, which checks the number as one from
@@ -517,9 +645,31 @@ a lookup that found nothing) refuses the field at `rule`: "The country must be a
 instead of skipping VIES without a word. If your select holds names or ids, map them to
 codes in the function.
 
-Numbers outside the EU pass, as VIES doesn't know them. VIES is often down for one
-country or another; to take the order anyway and check later, give
-`viesGate({ acceptWhenDown: (number) => queue(number) })`.
+`vatGate({ url })` asks `/api/vat-check` unless you say otherwise. Its `timeout` (15 s)
+is longer than `viesGate`'s (10 s), so a slow VIES comes back as the server's answer.
+`viesGate` also takes `invalid` and `unavailable` (the two messages) and `url`
+(`VIES_URL`).
+
+The caller (`req.ip` above) is what the per-caller limit counts, so make it something
+the client can't choose: the socket address, or the address set by a proxy you run
+(with Express, `trust proxy` naming that proxy, not `true`). A client that picks its
+own key, such as a made-up `X-Forwarded-For`, has no limit, and long keys cost memory.
+Count IPv6 clients by their /64 prefix: one machine often has a whole /64.
+
+Numbers outside the EU pass, as VIES doesn't know them. Only VIES's verdicts count:
+an answer like `MS_UNAVAILABLE`, `TIMEOUT` or `MS_MAX_CONCURRENT_REQ` is "VIES is
+down", never remembered. VIES is often down for one country or another, and the 120
+checks a minute in all, which keep your server in good standing with VIES, are shared:
+a dozen callers with 10 new numbers each use them up, and everyone else hears "try
+again" for the rest of the minute. For a checkout, take the order anyway and check the
+number later:
+
+```js
+const vies = viesGate({ acceptWhenDown: (number) => queue(number) });
+```
+
+A "not registered" answer is remembered for a day for everyone, so a number registered
+this morning may be refused until tomorrow. Lower `remember` if that matters.
 
 ## Loading
 
@@ -596,6 +746,9 @@ focus or press; a held submit is sent once.
 - A value more than 4 times over `max` (in UTF-16 units) fails at `length` before
   it is normalized, so one padded with thousands of spaces is refused, also in an
   optional field. Real text at `max` stays under the limit.
+- `vatNumber`, `integer`, `select` and `confirm` have no `length` stage (an
+  `integer`'s `max` bounds the number, not the text). Their checks take time in
+  proportion to the value, so the body limit is what bounds them.
 - `email` checks the shape only. A value like `` `id`@example.com `` is valid, so
   never hand one to a shell or a command line.
 - Free text refuses what can't be seen: zero width characters, soft hyphens, bidi
@@ -632,20 +785,26 @@ focus or press; a held submit is sent once.
 
 ## The look designer
 
+The designer and the example forms are in the repository, not in the npm package. Clone
+it and run:
+
 ```sh
+git clone https://github.com/mastermind-0xff/mm-form-validation.git
+cd mm-form-validation
+npm install
 npm run examples
 ```
 
-Builds the package and serves http://localhost:5178/examples/: four real forms
+It builds the package and serves http://localhost:5178/examples/: four real forms
 (sign-in, register, billing with company fields and a VAT number shaped by the
 country, contact), a server that checks the same schemas, and a panel to design
 how the fields look.
 
 - **Design:** one of five looks (edge, underline, outline, icon, filled), spacing,
   text, light and dark colors, the submit button (`class="fv-submit"`), motion, and
-  when an unfinished value turns red. The
-  forms use the CSS that gets exported, so what you see is what you get. A control
-  the chosen look doesn't use is dimmed, and its token is left out of the CSS.
+  when an unfinished value turns red. The forms use the CSS that gets exported, so
+  what you see is what you get. A control the chosen look doesn't use is dimmed, and
+  its token is left out of the CSS.
 - **Export:** an agent brief (one Markdown file with the settings, the CSS, the
   markup and how to check the result, so an agent in another project needs nothing
   else), the settings as JSON with only what differs from the defaults, the CSS with
@@ -653,15 +812,25 @@ how the fields look.
 - **Import:** paste or load the settings or a saved brief to carry on where you
   left off.
 
+The server is for your own machine only: it doesn't check `Host` or `Content-Type`, so
+a web page you visit meanwhile can post to it. Unless you are testing VIES itself, set
+`VIES_STUB=1` in the environment (`VIES_STUB=1 npm run examples`): the VAT check then
+answers from a stub, where a number ending in `00` is not registered and one ending in
+`99` finds VIES down, and never asks the real VIES.
+
 ### Only the changes
 
-The package ships a stylesheet per look, with the default settings. Link it, and add
-what you exported, in any order:
+The package ships a stylesheet per look, with the default settings (dark colors apply
+under `<html data-scheme="dark">`). Link it, and add what you exported, in any order:
 
 ```html
-<link rel="stylesheet" href="…/@mmutils/form-validation/looks/edge.css" />
+<link rel="stylesheet" href="/css/edge.css" />
 <link rel="stylesheet" href="/css/form-fields.changes.css" />
 ```
+
+Here `/css/edge.css` is `node_modules/@mmutils/form-validation/dist/looks/edge.css`,
+copied or served by your build; `import '@mmutils/form-validation/looks/edge.css'` works
+in a bundler that handles CSS.
 
 ```css
 html:root {
@@ -682,7 +851,7 @@ what goes into a `<style>` in the HTML, and the rest loads without blocking:
 | Layout + colors | everything shown before the form is used | nothing moves or flashes           |
 | Everything      | the whole stylesheet                     | there is nothing to wait for       |
 
-For the edge look these come to about 0.5, 0.9 and 1.2 KB gzipped, against 1.9 KB
+For the edge look these come to about 0.7, 1.1 and 1.5 KB gzipped, against 2.3 KB
 for the whole stylesheet. _Leave what is inlined out of the stylesheet_ sends nothing
 twice, but then every page that uses the stylesheet needs the block. _Check the layout
 shift_ measures every element in the forms with the block alone and with everything,
@@ -720,6 +889,24 @@ const brief = agentBrief(result.look);
 The output goes into a `<style>`, so `parseLook` accepts each value only in a shape
 that can't leave its declaration, and `generateCss` refuses anything else.
 
+## Development
+
+```sh
+npm install
+npm run check          # prettier, eslint, tsc, vitest
+npm run build          # dist/esm, dist/cjs, dist/types, dist/looks
+npm run coverage       # coverage of src
+npm run examples       # the look designer and the example forms
+npm run test:browsers  # Playwright: Chromium, Firefox, WebKit (long; install once with npx playwright install)
+```
+
+## AI use
+
+@mmutils/form-validation is developed with AI assistance: most of the code, tests and
+documentation was written with AI. The author designs the features, makes the decisions
+and reviews the changes, and every change passes the same checks (formatting, lint,
+strict type checking and tests) before it is committed.
+
 ## License
 
-MIT
+[MIT](LICENSE)

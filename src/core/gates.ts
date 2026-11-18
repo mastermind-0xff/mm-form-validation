@@ -1,5 +1,5 @@
 /**
- * Gates: a field's own checks after every stage has passed (plan §4.7). What no
+ * Gates: a field's own checks after every stage has passed. What no
  * library can know ("this e-mail is taken") or what needs a network (VIES).
  * They run one after another and the first refusal is the field's message.
  */

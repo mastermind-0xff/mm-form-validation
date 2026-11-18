@@ -1,5 +1,5 @@
 /**
- * The whole VAT check (plan §12 F6). VIES, the EU's service, refuses browsers
+ * The whole VAT check. VIES, the EU's service, refuses browsers
  * (its CORS preflight answers 403), so the two sides work like this:
  *
  *   browser: vatGate → your endpoint → answerVatCheck → viesGate → VIES

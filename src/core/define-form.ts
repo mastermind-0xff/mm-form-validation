@@ -1,6 +1,6 @@
 /**
- * `defineForm` groups fields into the schema both sides import (plan §4.1):
- * the server calls `parse` (with gates, `parseAsync` in gates.ts), the browser binding checks
+ * `defineForm` groups fields into the schema both sides import: the server
+ * calls `parse` (with gates, `parseAsync` in gates.ts), the browser binding checks
  * one field at a time against the values of the whole form.
  */
 import type { Field, FieldResult, FormValues, ParsedValue } from './types.js';

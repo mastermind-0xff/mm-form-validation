@@ -1,6 +1,6 @@
 /**
  * `select` (a drop-down) and `choice` (a radio group): the value must be one
- * of the options, checked by value, not by position in the list (plan §12 F2).
+ * of the options, checked by value, not by position in the list.
  * A value can be a database id: `{ value: 17, label: 'Bulgaria' }` shows the
  * name and stores '17', so the list has one source and the rows hold the id.
  * The empty value ('', a "Choose…" option) is "not chosen".

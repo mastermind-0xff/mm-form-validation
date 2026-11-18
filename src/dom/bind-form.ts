@@ -1,5 +1,5 @@
 /**
- * The browser binding (plan §7): checks a form's fields while the user types,
+ * The browser binding: checks a form's fields while the user types,
  * with the schema the server uses. It sets attributes only; the look is the
  * page's CSS:
  *
@@ -31,7 +31,7 @@ import type { FieldResult, FormValues, Gate } from '../core/types.js';
  *
  * - `leave`: when the field is left ("reward early, punish late");
  * - `pause`: when the user stops typing for `pause` ms, or leaves;
- * - `input`: at once, on every keystroke (motionbites).
+ * - `input`: at once, on every keystroke.
  */
 export type Timing = 'leave' | 'pause' | 'input';
 
@@ -334,7 +334,10 @@ export function bindForm<F extends FormFields>(
     let kind: 'hint' | 'error' | undefined;
     let message = '';
     let pending = false;
-    if (active) {
+    // a field nobody has reached shows nothing whatever its value (a server
+    // message touches it), so it isn't checked: binding a form compiles no
+    // regex, and a keystroke checks only the fields reached so far
+    if (active && (slot.touched || focused === slot)) {
       let result: FieldResult<unknown> = field.check(
         raw[slot.name],
         view,

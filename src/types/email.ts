@@ -1,12 +1,13 @@
 /**
  * `email`: trimmed and lower-cased, at most 254 characters. The shape is
- * aesweets' rule (`server/auth/input.ts`); the characters it refuses, and some
- * more that rule lets through, are named by the `chars` stage instead of one
- * generic message. It checks the shape only: never hand the value to a shell.
+ * loose: one `@`, and a dot in the domain with two characters or more after
+ * it. The characters it refuses, which a shape this loose lets through, are
+ * named by the `chars` stage instead of one generic message. It checks the
+ * shape only: never hand the value to a shell.
  */
 import { nfc } from '../chars.js';
 import { defineType } from '../core/define-type.js';
-import { charsStage, length, pattern } from '../core/stages.js';
+import { charsOf, length, pattern } from '../core/stages.js';
 
 export interface EmailArgs {
   readonly min: number;
@@ -29,9 +30,12 @@ export const email = /* @__PURE__ */ defineType<EmailArgs>({
   defaults: { min: 1, max: 254 },
   normalize: (value) => nfc(value).trim().toLowerCase(),
   stages: [
-    charsStage(() => BAD),
+    /* @__PURE__ */ charsOf(BAD),
     length,
-    pattern(SHAPE, 'Enter a valid e-mail, like name@example.com.'),
+    /* @__PURE__ */ pattern(
+      SHAPE,
+      'Enter a valid e-mail, like name@example.com.'
+    ),
   ],
   examples: ({ max }) => {
     const long = max > DOMAIN.length;

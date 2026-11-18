@@ -1,5 +1,5 @@
 /**
- * When a message turns red, with real keyboard input (plan §6, §12 F1). The clock
+ * When a message turns red, with real keyboard input. The clock
  * is real too. Every wait for "not yet" is measured from the page itself, so a slow
  * machine can't turn it into a false failure.
  */

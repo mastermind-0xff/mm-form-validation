@@ -1,5 +1,5 @@
 /**
- * The shapes shared by types, fields and forms (plan §4). The pipeline works
+ * The shapes shared by types, fields and forms. The pipeline works
  * on strings: a type reads the raw value into a string, normalizes it, runs
  * its stages on it and only then turns it into the field's value.
  */
@@ -66,7 +66,7 @@ export type FieldResult<V> =
   | { readonly state: 'valid'; readonly value: V }
   | Invalid;
 
-/** Example values of a type, computed from its arguments (plan §8). */
+/** Example values of a type, computed from its arguments. */
 export interface Examples {
   /** Raw values the type accepts. */
   readonly valid: readonly unknown[];

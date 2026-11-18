@@ -1,6 +1,6 @@
 /**
  * Nothing moves: not when a field validates (positions stay, except a message
- * longer than the reserved lines, which is reported: F12 is open), not when the
+ * longer than the reserved lines, which is reported), not when the
  * stylesheet arrives late behind an inline block, and no sideways scrolling.
  */
 import {

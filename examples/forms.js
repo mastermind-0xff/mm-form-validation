@@ -41,10 +41,10 @@ export const countries = [
   { value: 'US', label: 'United States' },
 ];
 
-/** motionbites' sign-in, the user's reference for the look. */
+/** A sign-in form. */
 export const signIn = defineForm({
   email: email({ messages: { required: 'Enter your e-mail.' } }),
-  // signing in checks only that a password was typed (aesweets' rule)
+  // signing in checks only that a password was typed: the rules are for choosing one
   password: password({
     min: 1,
     max: 512,
@@ -73,7 +73,7 @@ export const register = defineForm({
 
 const isCompany = (values) => values.isCompany === '1';
 
-/** aesweets' billing form: company fields, a VAT number shaped by the country. */
+/** A billing form: company fields, a VAT number shaped by the country. */
 export const billing = defineForm({
   isCompany: choice({
     options: ['0', '1'],

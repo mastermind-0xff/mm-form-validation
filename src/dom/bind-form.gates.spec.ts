@@ -379,6 +379,58 @@ describe('bindForm: gates at submit', () => {
   });
 });
 
+describe('bindForm: bind and destroy', () => {
+  it('leaves no listener, timer, line or running gate after 1000 cycles', async () => {
+    const listeners = new Map<string, number>();
+    const count = (type: string, by: number) =>
+      listeners.set(type, (listeners.get(type) ?? 0) + by);
+    const add = form.addEventListener.bind(form);
+    const remove = form.removeEventListener.bind(form);
+    vi.spyOn(form, 'addEventListener').mockImplementation((type, fn) => {
+      count(type, 1);
+      add(type, fn);
+    });
+    vi.spyOn(form, 'removeEventListener').mockImplementation((type, fn) => {
+      count(type, -1);
+      remove(type, fn);
+    });
+    const signals: AbortSignal[] = [];
+    const answers: ((answer: string | undefined) => void)[] = [];
+    const gate: Gate = (_value, { signal }) => {
+      if (signal) signals.push(signal);
+      return new Promise((resolve) => answers.push(resolve));
+    };
+    for (let i = 0; i < 1000; i++) {
+      const bound = bind(gate);
+      focus();
+      type(`abc${String(i)}`);
+      // every other cycle the gate is running, else still waiting for the pause
+      if (i % 2 === 0) await vi.advanceTimersByTimeAsync(100);
+      bound.destroy();
+      expect(vi.getTimerCount()).toBe(0);
+    }
+    expect(Object.fromEntries(listeners)).toEqual({
+      focusin: 0,
+      focusout: 0,
+      input: 0,
+      change: 0,
+      submit: 0,
+    });
+    expect(form.querySelectorAll('[data-message-for]')).toHaveLength(1);
+    expect(input().getAttribute('aria-describedby')?.split(' ')).toHaveLength(
+      1
+    );
+    expect(signals).toHaveLength(500);
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    // answers that come after destroy change nothing
+    const before = box().outerHTML;
+    for (const answer of answers) answer('Taken.');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(box().outerHTML).toBe(before);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
 describe('bindForm: validateAsync', () => {
   it('waits for the gates', async () => {
     const bound = bind(() => 'Taken.');

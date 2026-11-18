@@ -1,5 +1,5 @@
 /**
- * Named character sets (plan §4.6). Each set is a regex that matches one
+ * Named character sets. Each set is a regex that matches one
  * character the set does **not** allow, so the `chars` stage can name the
  * first offending character. Unicode aware (`u`); inside the classes `-`,
  * `(`, `)` and `/` are escaped, so they also compile with the `v` flag.
@@ -22,32 +22,28 @@ const FREE_TEXT =
 // (20 KB of runs of 30 took 10-16 ms a set, now 1-2 ms). No lookbehind (Safari
 // 15.4), so the character before the run is matched too and `badChar` names the
 // run instead. The last alternative, so a character refused for itself is named
-// first, as before.
+// first, as before. `name`, `place`, `address` and `MARK_RUN` spell it out, to
+// stay literals.
 const RUN = '(?:^|\\P{M})(?<run>\\p{M}{31})';
+
+// called with literals and marked pure, so a bundle that never reads `charSets`
+// drops the table: `new RegExp` on the constant itself counts as a side effect
+const freeText = (more: string) =>
+  new RegExp(`${FREE_TEXT}|${more}|${RUN}`, 'u');
 
 export const charSets = {
   /** Printable text on one line. */
-  text: new RegExp(`${FREE_TEXT}|\\p{Cc}|${RUN}`, 'u'),
+  text: /* @__PURE__ */ freeText('\\p{Cc}'),
   /** `text` plus line breaks and tabs. */
-  multiline: new RegExp(
-    `${FREE_TEXT}|[\\x00-\\x08\\x0B-\\x1F\\x7F-\\x9F]|${RUN}`,
-    'u'
-  ),
+  multiline: /* @__PURE__ */ freeText('[\\x00-\\x08\\x0B-\\x1F\\x7F-\\x9F]'),
   /** Letters (any script, no fillers), combining marks, space, `'` `’` `´` `` ` `` `-` `.`, the middle dots of Japanese and Chinese names (`・` `·`) */
-  name: new RegExp(
-    `[^\\p{L}\\p{M} '’´\`\\-.·・]|[\\u115F\\u1160\\u3164\\uFFA0]|${RUN}`,
-    'u'
-  ),
+  name: /[^\p{L}\p{M} '’´`\-.·・]|[\u115F\u1160\u3164\uFFA0]|(?:^|\P{M})(?<run>\p{M}{31})/u,
   /** `name` plus digits, `(` `)` `,` `/`, and their CJK forms `（` `）` `，` `、` */
-  place: new RegExp(
-    `[^\\p{L}\\p{M}\\p{N} '’´\`\\-.·・\\(\\),\\/（），、]|[\\u115F\\u1160\\u3164\\uFFA0]|${RUN}`,
-    'u'
-  ),
+  place:
+    /[^\p{L}\p{M}\p{N} '’´`\-.·・\(\),\/（），、]|[\u115F\u1160\u3164\uFFA0]|(?:^|\P{M})(?<run>\p{M}{31})/u,
   /** `place` plus `#` `№` `:` `&` `"`, and Japanese `〒` `−` `－` */
-  address: new RegExp(
-    `[^\\p{L}\\p{M}\\p{N} '’´\`\\-.·・\\(\\),\\/（），、#№:&"〒−－]|[\\u115F\\u1160\\u3164\\uFFA0]|${RUN}`,
-    'u'
-  ),
+  address:
+    /[^\p{L}\p{M}\p{N} '’´`\-.·・\(\),\/（），、#№:&"〒−－]|[\u115F\u1160\u3164\uFFA0]|(?:^|\P{M})(?<run>\p{M}{31})/u,
   digits: /[^0-9]/u,
   alnum: /[^A-Za-z0-9]/u,
   /** Letters and digits (ASCII), `-` and `_` */
@@ -75,7 +71,7 @@ export const kinds = {
 
 export type Kind = keyof typeof kinds;
 
-const MARK_RUN = new RegExp(RUN, 'u');
+const MARK_RUN = /(?:^|\P{M})\p{M}{31}/u;
 
 /**
  * NFC, but not on 31 or more marks in a row: ICU's reordering is quadratic on

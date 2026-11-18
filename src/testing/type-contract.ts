@@ -1,5 +1,5 @@
 /**
- * The contract every field type passes (plan §8.1). Runner-agnostic: it
+ * The contract every field type passes. Runner-agnostic: it
  * returns `{ name, run }` cases that throw on failure, so vitest
  * (`it(c.name, c.run)`) and `node:test` (`test(c.name, c.run)`) both run them.
  */

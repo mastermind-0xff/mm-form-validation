@@ -1,6 +1,6 @@
 /**
- * The billing form: inactive fields (plan §12 F14) and the VAT messages per country.
- * Long messages are reported, not refused: F12 is open.
+ * The billing form: inactive fields and the VAT messages per country.
+ * Long messages are reported, not refused.
  */
 import {
   control,
@@ -141,7 +141,7 @@ test('the VAT hint follows the select, for every country', async ({
     await vat.blur();
   }
   console.log(
-    `[${testInfo.project.name}] VAT hints that wrap past the reserved line (F12): ${wrapped.length}/${Object.keys(HINTS).length}\n  ${wrapped.join('\n  ')}`
+    `[${testInfo.project.name}] VAT hints that wrap past the reserved line: ${wrapped.length}/${Object.keys(HINTS).length}\n  ${wrapped.join('\n  ')}`
   );
 });
 

@@ -1,5 +1,5 @@
 /**
- * The shared stages (plan §4.4). A type lists the ones it needs, in order,
+ * The shared stages. A type lists the ones it needs, in order,
  * and adds its own `rule` or `pattern` stages for what is special about it.
  */
 import {
@@ -29,12 +29,14 @@ export function charsMessage(details: Details): string {
     : `The character ${String(details['shown'])} is not allowed.`;
 }
 
-/** Fails on the first character outside the set the arguments name. */
-export function charsStage<A>(set: (args: A) => CharSet): Stage<A> {
+/** Fails on the first character `find` finds in the value. */
+function charsCheck<A>(
+  find: (value: string, args: A) => string | undefined
+): Stage<A> {
   return {
     name: 'chars',
     check: (value, args) => {
-      const char = badChar(value, set(args));
+      const char = find(value, args);
       if (char === undefined) return undefined;
       const details = { char, shown: shown(char) };
       return { message: charsMessage(details), details };
@@ -42,10 +44,23 @@ export function charsStage<A>(set: (args: A) => CharSet): Stage<A> {
   };
 }
 
+/** Fails on the first character outside the set the arguments name. */
+export function charsStage<A>(set: (args: A) => CharSet): Stage<A> {
+  return charsCheck((value, args) => badChar(value, set(args)));
+}
+
+/**
+ * `charsStage` with one regex that matches a character that isn't allowed. A
+ * type that names no set uses this, so its bundle doesn't carry `charSets`.
+ */
+export function charsOf<A>(re: RegExp): Stage<A> {
+  // `match`, not `exec`: a regex with the `g` flag keeps no state
+  return charsCheck((value) => value.match(re)?.[0]);
+}
+
 /** `chars` from the `chars` argument (`text`, `multiline` and their presets). */
-export const chars: Stage<{ readonly chars: CharSet }> = charsStage(
-  (args) => args.chars
-);
+export const chars: Stage<{ readonly chars: CharSet }> =
+  /* @__PURE__ */ charsCheck((value, args) => badChar(value, args.chars));
 
 export function lengthMessage(details: Details): string {
   const { min = 0, max = 0, count = 0 } = details;
@@ -78,7 +93,7 @@ export const length: Stage<{ readonly min: number; readonly max: number }> = {
   },
 };
 
-/** Needs one character of a kind: City "1" fails, "Å" passes (plan §4.6). */
+/** Needs one character of a kind: City "1" fails, "Å" passes. */
 export const contains: Stage<{ readonly contains: Kind | undefined }> = {
   name: 'contains',
   check: (value, args) => {
