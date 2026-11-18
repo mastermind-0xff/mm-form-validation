@@ -1,5 +1,5 @@
 /**
- * The package in real browsers (`npm run test:browsers`, plan §13). Always
+ * The package in real browsers (`npm run test:browsers`). Always
  * 127.0.0.1, never localhost: the user's saved designs live in localStorage on
  * localhost. `VIES_STUB=1` keeps every server off the real VIES.
  */

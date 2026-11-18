@@ -1,6 +1,5 @@
 /**
- * `honeypot`: a field people don't see, so only a bot fills it (plan §5, user
- * D36 2026-11-08). Filled with anything (a string, spaces too, a number,
+ * `honeypot`: a field people don't see, so only a bot fills it. Filled with anything (a string, spaces too, a number,
  * `true`) it is refused at `rule`, with a message that doesn't tell why;
  * something no form sends (an object, an array, `null`) fails at `type`. Its
  * value is always ''. It isn't required (the type's default, so a preset of it
@@ -8,7 +7,7 @@
  *
  * The markup must keep browsers and password managers from filling it, or a
  * person is refused too: `fieldAttributes` gives the control's attributes, and
- * the README the wrapper, the name and the label to use (plan §5).
+ * the README the wrapper, the name and the label to use.
  */
 import { defineType } from '../core/define-type.js';
 

@@ -1,5 +1,5 @@
 /**
- * The test cases of a whole form (plan §8.2). Like `typeContract`, it returns
+ * The test cases of a whole form. Like `typeContract`, it returns
  * `{ name, run }` cases that throw on failure, for any test runner. A form is
  * ready for commit when its cases pass.
  */
@@ -37,7 +37,7 @@ const TRAP_PARTS =
  * together with another (`faxnumber`) isn't seen, and only English words are
  * known. Check the honeypot's `id` with it too, not its label: the label is
  * for a person who sees the field without the CSS, and "Leave this empty",
- * which it refuses, is what they must read (plan §5, README "A honeypot").
+ * which it refuses, is what they must read (see "A honeypot" in the README).
  */
 export function trapNameProblem(name: string): string | undefined {
   const words = name

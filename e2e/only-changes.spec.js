@@ -1,5 +1,5 @@
 /**
- * Only the changes (plan §12 F11): the shipped `dist/looks/<look>.css` plus the
+ * Only the changes: the shipped `dist/looks/<look>.css` plus the
  * exported changes, in either order, must give every field in every state the same
  * computed style as the "Whole stylesheet" export. A difference is a bug.
  */

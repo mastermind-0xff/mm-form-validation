@@ -1,5 +1,5 @@
 /**
- * The browser binding (plan §7): checks a form's fields while the user types,
+ * The browser binding: checks a form's fields while the user types,
  * with the schema the server uses. It sets attributes only; the look is the
  * page's CSS:
  *
@@ -31,7 +31,7 @@ import type { FieldResult, FormValues, Gate } from '../core/types.js';
  *
  * - `leave`: when the field is left ("reward early, punish late");
  * - `pause`: when the user stops typing for `pause` ms, or leaves;
- * - `input`: at once, on every keystroke (motionbites).
+ * - `input`: at once, on every keystroke.
  */
 export type Timing = 'leave' | 'pause' | 'input';
 

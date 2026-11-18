@@ -1,6 +1,5 @@
 /**
- * `multiline`: text with line breaks, e.g. a description (plan §5, the
- * user's "text-multiline"). Line breaks become `\n`, spaces at the end of each
+ * `multiline`: text with line breaks, e.g. a description. Line breaks become `\n`, spaces at the end of each
  * line and blank lines around the text are dropped, the value is NFC.
  */
 import { nfc, type CharSet, type Kind } from '../chars.js';

@@ -1,17 +1,15 @@
 /**
- * `vatNumber`: a company's VAT number for its country (plan §5, moved from
- * aesweets' `checkVatNumber`, 2026-11-03). Upper case, without spaces, dots
- * or dashes, stored with the country prefix (added when only the national
- * part was typed). In the EU the prefix must be the country's own (EL for
+ * `vatNumber`: a company's VAT number for its country. Upper case, without
+ * spaces, dots or dashes, stored with the country prefix (added when only the
+ * national part was typed). In the EU the prefix must be the country's own (EL for
  * Greece, GR accepted) and the rest must have the country's VIES format;
  * elsewhere any 4–20 letters and digits.
  *
- * While the user types, the message shows the shape still missing (user,
- * item 4). A plain run of digits says so in words: "BG and 9 or 10 digits:
- * BG1234XXXXX". Anything longer to explain shows the masks and what they mean
- * (plan §12 F5): "NLXXXXXXXXXBXX (X = digit)". In the masks `X` is a digit, `L`
- * a letter, `?` a letter or a digit, `|` separates alternatives, and anything
- * else is literal.
+ * While the user types, the message shows the shape still missing. A plain run
+ * of digits says so in words: "BG and 9 or 10 digits: BG1234XXXXX". Anything
+ * longer to explain shows the masks and what they mean: "NLXXXXXXXXXBXX (X =
+ * digit)". In the masks `X` is a digit, `L` a letter, `?` a letter or a digit,
+ * `|` separates alternatives, and anything else is literal.
  */
 import { defineType } from '../core/define-type.js';
 import { charsStage } from '../core/stages.js';

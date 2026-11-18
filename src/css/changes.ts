@@ -1,5 +1,5 @@
 /**
- * Only what differs from the defaults (plan §12 F11), as settings and as CSS. The
+ * Only what differs from the defaults, as settings and as CSS. The
  * package ships a stylesheet per look (`@mmutils/form-validation/looks/edge.css`);
  * the changes go on top of it, in either order: `html:root` outweighs its `:root`.
  */

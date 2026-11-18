@@ -1,6 +1,6 @@
 /**
  * `code`: a short machine-made value somebody types or pastes, like a discount
- * code or a token from a link (plan §5). Trimmed, and checked against a small
+ * code or a token from a link. Trimmed, and checked against a small
  * set of characters: ASCII letters, digits, `-` and `_` by default. The case
  * stays as typed, because many tokens are case-sensitive; `upper: true`
  * stores it in upper case.

@@ -1,5 +1,5 @@
 /**
- * `defineType` turns a type (plan §4.5) into a field factory: `text({ max:
+ * `defineType` turns a type into a field factory: `text({ max:
  * 100 })`. The field runs the same pipeline in the browser and on the server:
  * read → far over `max`? (`length`) → normalize → empty? (`required`) → the
  * type's stages → the field's `rule` → finish → value.
@@ -170,7 +170,7 @@ export interface PresetOptions<A extends object> {
 }
 
 /**
- * A type made from another with other defaults (plan §5):
+ * A type made from another with other defaults:
  * `preset(text, { name: 'place', defaults: { chars: 'place', contains: 'letter' } })`.
  */
 export function preset<A extends object, V>(

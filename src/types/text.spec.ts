@@ -62,7 +62,7 @@ describe('text', () => {
   });
 });
 
-describe('names and addresses from anywhere (plan §12 F3)', () => {
+describe('names and addresses from anywhere', () => {
   it.each([
     '山田太郎',
     'ジョン・スミス',

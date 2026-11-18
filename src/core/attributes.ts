@@ -1,5 +1,5 @@
 /**
- * `fieldAttributes` (plan §7): the attributes of a field's control, for markup
+ * `fieldAttributes`: the attributes of a field's control, for markup
  * written on a server, so that markup and schema can't drift. A module of its
  * own: a page bundle that only checks forms never carries this table.
  *
@@ -24,7 +24,7 @@ export interface FieldAttributes {
    * A honeypot: `new-password`, not `off`. Firefox's password manager takes a
    * text field with `off` (or none) as a username, invisible or not; one with
    * `new-password` it never does. Chrome ignores `new-password` on a field that
-   * isn't a password (plan §5).
+   * isn't a password.
    */
   readonly autocomplete?: 'new-password';
   readonly tabindex?: '-1';
