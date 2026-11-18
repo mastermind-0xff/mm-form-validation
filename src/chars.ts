@@ -15,24 +15,39 @@
 // of a value a mark or a joiner has nothing to attach to, and alone it would
 // fill a required field with nothing to see.
 const FREE_TEXT =
-  '^[\\p{M}\\u200C\\u200D]|\\p{M}{31}|(?![\\u200C\\u200D])[\\p{Cf}\\p{Cs}\\p{Co}\\p{NChar}\\u115F\\u1160\\u2800\\u3164\\uFFA0]';
+  '^[\\p{M}\\u200C\\u200D]|(?![\\u200C\\u200D])[\\p{Cf}\\p{Cs}\\p{Co}\\p{NChar}\\u115F\\u1160\\u2800\\u3164\\uFFA0]';
+
+// 31 marks or more in a row (UAX #15 allows 30), tried only where a run starts:
+// `\p{M}{31}` alone starts again from every mark of a run, 30 steps a character
+// (20 KB of runs of 30 took 10-16 ms a set, now 1-2 ms). No lookbehind (Safari
+// 15.4), so the character before the run is matched too and `badChar` names the
+// run instead. The last alternative, so a character refused for itself is named
+// first, as before.
+const RUN = '(?:^|\\P{M})(?<run>\\p{M}{31})';
 
 export const charSets = {
   /** Printable text on one line. */
-  text: new RegExp(`${FREE_TEXT}|\\p{Cc}`, 'u'),
+  text: new RegExp(`${FREE_TEXT}|\\p{Cc}|${RUN}`, 'u'),
   /** `text` plus line breaks and tabs. */
   multiline: new RegExp(
-    `${FREE_TEXT}|[\\x00-\\x08\\x0B-\\x1F\\x7F-\\x9F]`,
+    `${FREE_TEXT}|[\\x00-\\x08\\x0B-\\x1F\\x7F-\\x9F]|${RUN}`,
     'u'
   ),
   /** Letters (any script, no fillers), combining marks, space, `'` `’` `´` `` ` `` `-` `.`, the middle dots of Japanese and Chinese names (`・` `·`) */
-  name: /[^\p{L}\p{M} '’´`\-.·・]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
+  name: new RegExp(
+    `[^\\p{L}\\p{M} '’´\`\\-.·・]|[\\u115F\\u1160\\u3164\\uFFA0]|${RUN}`,
+    'u'
+  ),
   /** `name` plus digits, `(` `)` `,` `/`, and their CJK forms `（` `）` `，` `、` */
-  place:
-    /[^\p{L}\p{M}\p{N} '’´`\-.·・\(\),\/（），、]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
+  place: new RegExp(
+    `[^\\p{L}\\p{M}\\p{N} '’´\`\\-.·・\\(\\),\\/（），、]|[\\u115F\\u1160\\u3164\\uFFA0]|${RUN}`,
+    'u'
+  ),
   /** `place` plus `#` `№` `:` `&` `"`, and Japanese `〒` `−` `－` */
-  address:
-    /[^\p{L}\p{M}\p{N} '’´`\-.·・\(\),\/（），、#№:&"〒−－]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
+  address: new RegExp(
+    `[^\\p{L}\\p{M}\\p{N} '’´\`\\-.·・\\(\\),\\/（），、#№:&"〒−－]|[\\u115F\\u1160\\u3164\\uFFA0]|${RUN}`,
+    'u'
+  ),
   digits: /[^0-9]/u,
   alnum: /[^A-Za-z0-9]/u,
   /** Letters and digits (ASCII), `-` and `_` */
@@ -46,7 +61,8 @@ export type CharSet = keyof typeof charSets | RegExp;
 export function badChar(value: string, set: CharSet): string | undefined {
   const re = typeof set === 'string' ? charSets[set] : set;
   // `match`, not `exec`: a custom set with the `g` flag keeps no state
-  return value.match(re)?.[0];
+  const found = value.match(re);
+  return found?.groups?.['run'] ?? found?.[0];
 }
 
 /** Kinds of character a value must contain (`contains`). */
@@ -59,7 +75,7 @@ export const kinds = {
 
 export type Kind = keyof typeof kinds;
 
-const MARK_RUN = /\p{M}{31}/u;
+const MARK_RUN = new RegExp(RUN, 'u');
 
 /**
  * NFC, but not on 31 or more marks in a row: ICU's reordering is quadratic on

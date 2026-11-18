@@ -131,6 +131,53 @@ describe('nfc', () => {
     nfc(`a${marks(200_000)}`);
     expect(performance.now() - start).toBeLessThan(1000);
   });
+
+  it('looks for a long run only where a run starts: runs of 30 cost little', () => {
+    // `\p{M}{31}` tried from every mark (30 steps a character) took 3.3 s here,
+    // tried where a run starts 0.6 s
+    const runs = `a${marks(30)}`.repeat(32_000);
+    const start = performance.now();
+    expect(nfc(runs)).not.toBe(runs);
+    for (const set of sets) expect(badChar(runs, set)).toBeUndefined();
+    expect(performance.now() - start).toBeLessThan(2000);
+  });
+
+  it('names the same character as the sets that tried every mark', () => {
+    const free =
+      '^[\\p{M}\\u200C\\u200D]|\\p{M}{31}|(?![\\u200C\\u200D])[\\p{Cf}\\p{Cs}\\p{Co}\\p{NChar}\\u115F\\u1160\\u2800\\u3164\\uFFA0]';
+    /* eslint-disable no-useless-escape -- copied as they were, v-flag escapes included */
+    const before = {
+      text: new RegExp(`${free}|\\p{Cc}`, 'u'),
+      multiline: new RegExp(`${free}|[\\x00-\\x08\\x0B-\\x1F\\x7F-\\x9F]`, 'u'),
+      name: /[^\p{L}\p{M} '’´`\-.·・]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
+      place:
+        /[^\p{L}\p{M}\p{N} '’´`\-.·・\(\),\/（），、]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
+      address:
+        /[^\p{L}\p{M}\p{N} '’´`\-.·・\(\),\/（），、#№:&"〒−－]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
+    };
+    /* eslint-enable no-useless-escape */
+    const pool = ['a', '<', '1', ' ', '\u0323', '\u200D', '\u202E', '\u0007'];
+    let seed = 1;
+    const random = (n: number) => {
+      seed = (seed * 48_271) % 2_147_483_647;
+      return seed % n;
+    };
+    for (let i = 0; i < 20_000; i++) {
+      // runs of marks around 31 long, other characters before, after, inside
+      let value = '';
+      while (value.length < 80)
+        value +=
+          random(2) === 0 ?
+            '\u0301'.repeat(random(40))
+          : `${pool[random(pool.length)]}${i % 2 === 0 ? '\uD800' : ''}`;
+      for (const set of sets)
+        expect([set, value, badChar(value, set)]).toEqual([
+          set,
+          value,
+          value.match(before[set])?.[0],
+        ]);
+    }
+  });
 });
 
 describe('codePoints', () => {
