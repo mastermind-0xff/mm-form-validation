@@ -1,9 +1,10 @@
 {
   "name": "@mmutils/form-validation",
   "version": "0.0.0",
-  "description": "One field schema for the browser and the server: typed fields (text, multiline, select, e-mail…) checked in stages with the same code on both sides, live messages in the form, and a test contract for every field type.",
+  "description": "Isomorphic TypeScript form validation: one field schema for the browser and the server, typed fields checked in stages with the same code on both sides, live messages while typing, gates for your own checks, and a test contract for every field type.",
   "keywords": [
     "form",
+    "forms",
     "validation",
     "validator",
     "schema",
@@ -11,10 +12,22 @@
     "browser",
     "server",
     "typescript",
+    "unicode",
+    "honeypot",
+    "vat",
+    "vies",
     "mmutils"
   ],
   "author": "Tihomir Trifonov",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mastermind-0xff/mm-form-validation.git"
+  },
+  "homepage": "https://github.com/mastermind-0xff/mm-form-validation#readme",
+  "bugs": {
+    "url": "https://github.com/mastermind-0xff/mm-form-validation/issues"
+  },
   "type": "module",
   "main": "./dist/cjs/index.cjs",
   "module": "./dist/esm/index.js",
