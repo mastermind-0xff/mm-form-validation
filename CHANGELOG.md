@@ -138,6 +138,13 @@ a release you could have installed.
 - The submit button has settings too (`.fv-submit`): color, text, hover and pressed,
   padding, corners, text size.
 
+### Package
+
+- ESM and CommonJS, one file per module, no runtime dependencies, Node.js 22 or newer.
+  Type declarations for both: `.d.ts` for `import`, `.d.cts` for `require` (TypeScript's
+  `node16` and `nodenext` read a `.d.ts` in this package as ESM), and `typesVersions` for
+  the entry points under the older `node10` resolution.
+
 ### Repository
 
 - `examples/`: four forms and a server running the same schemas, with the look
