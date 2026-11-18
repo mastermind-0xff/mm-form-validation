@@ -14,7 +14,7 @@
  * else is literal.
  */
 import { defineType } from '../core/define-type.js';
-import { charsStage } from '../core/stages.js';
+import { charsOf } from '../core/stages.js';
 import type { Problem } from '../core/types.js';
 
 export interface VatNumberArgs {
@@ -180,7 +180,7 @@ export const vatNumber = /* @__PURE__ */ defineType<VatNumberArgs>({
           }
         : undefined,
     },
-    charsStage(() => /[^A-Z0-9]/u),
+    charsOf(/[^A-Z0-9]/u),
     {
       // another country's prefix: no more typing fixes that
       name: 'rule',

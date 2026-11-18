@@ -17,14 +17,15 @@
 const FREE_TEXT =
   '^[\\p{M}\\u200C\\u200D]|\\p{M}{31}|(?![\\u200C\\u200D])[\\p{Cf}\\p{Cs}\\p{Co}\\p{NChar}\\u115F\\u1160\\u2800\\u3164\\uFFA0]';
 
+// called with literals and marked pure, so a bundle that never reads `charSets`
+// drops the table: `new RegExp` on the constant itself counts as a side effect
+const freeText = (more: string) => new RegExp(`${FREE_TEXT}|${more}`, 'u');
+
 export const charSets = {
   /** Printable text on one line. */
-  text: new RegExp(`${FREE_TEXT}|\\p{Cc}`, 'u'),
+  text: /* @__PURE__ */ freeText('\\p{Cc}'),
   /** `text` plus line breaks and tabs. */
-  multiline: new RegExp(
-    `${FREE_TEXT}|[\\x00-\\x08\\x0B-\\x1F\\x7F-\\x9F]`,
-    'u'
-  ),
+  multiline: /* @__PURE__ */ freeText('[\\x00-\\x08\\x0B-\\x1F\\x7F-\\x9F]'),
   /** Letters (any script, no fillers), combining marks, space, `'` `’` `´` `` ` `` `-` `.`, the middle dots of Japanese and Chinese names (`・` `·`) */
   name: /[^\p{L}\p{M} '’´`\-.·・]|[\u115F\u1160\u3164\uFFA0]|\p{M}{31}/u,
   /** `name` plus digits, `(` `)` `,` `/`, and their CJK forms `（` `）` `，` `、` */

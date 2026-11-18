@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Smaller bundles: a form whose fields name no character set (`email`, `password`,
+  `select`, `checkbox`, `vatNumber`…) no longer carries `charSets`: a sign-in page
+  (`email`, `password`, `bindForm`) is 318 B smaller gzipped (4803 -> 4485).
+
 ## 0.1.0 (unreleased)
 
 Nothing released yet. The plan is in `.claude/plan.md` (local).
