@@ -18,7 +18,10 @@ export interface EmailArgs {
 // controls, zero width characters): `chars.ts` says more about these classes.
 const BAD =
   /[\s<>()",;:\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{NChar}\u115F\u1160\u2800\u3164\uFFA0]|\p{M}{31}/u;
-const SHAPE = /^[^@]+@[^@]+\.[^@]{2,}$/u;
+// The domain has a dot after its first character with 2 more after it. Fixed to
+// the first such dot, so each value is scanned once: `[^@]+\.` tried every dot
+// and scanned to the end from each (100 000 characters took 8 s).
+const SHAPE = /^[^@]+@[^@][^@.]*\.[^@]{2,}$/u;
 const DOMAIN = '@example.com';
 
 export const email = /* @__PURE__ */ defineType<EmailArgs>({
