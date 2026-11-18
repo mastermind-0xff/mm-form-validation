@@ -60,7 +60,7 @@ export function charsOf<A>(re: RegExp): Stage<A> {
 
 /** `chars` from the `chars` argument (`text`, `multiline` and their presets). */
 export const chars: Stage<{ readonly chars: CharSet }> =
-  /* @__PURE__ */ charsStage((args) => args.chars);
+  /* @__PURE__ */ charsCheck((value, args) => badChar(value, args.chars));
 
 export function lengthMessage(details: Details): string {
   const { min = 0, max = 0, count = 0 } = details;
