@@ -271,15 +271,77 @@ describe('vatGate', () => {
 });
 
 describe('remoteGate', () => {
-  it('sends { value } by default, with the signal', async () => {
+  it('sends { value } by default', async () => {
     const fetch = fakeFetch(() => json({ message: 'taken' }));
-    const controller = new AbortController();
     const gate = remoteGate('/free', { fetch });
-    expect(
-      await gate('a@b.co', { values: {}, args: {}, signal: controller.signal })
-    ).toBe('taken');
+    expect(await gate('a@b.co', { values: {}, args: {} })).toBe('taken');
     expect(sent(fetch)).toEqual({ value: 'a@b.co' });
-    expect(fetch.mock.calls[0]?.[1]?.signal).toBe(controller.signal);
+  });
+
+  /** A server that never answers: the request ends only when it is aborted. */
+  const silent = () =>
+    vi.fn<Fetch>(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          const abort = () => {
+            reject(new Error('aborted'));
+          };
+          // like fetch: a signal aborted before the request rejects at once
+          if (init?.signal?.aborted) abort();
+          init?.signal?.addEventListener('abort', abort);
+        })
+    );
+
+  it.each([
+    [undefined, 15_000],
+    [500, 500],
+  ])(
+    'gives up after the timeout %s: no verdict, so a submit is not stuck',
+    async (timeout, after) => {
+      vi.useFakeTimers();
+      try {
+        const gate = remoteGate('/free', {
+          fetch: silent(),
+          ...(timeout !== undefined && { timeout }),
+        });
+        const answer = Promise.resolve(
+          gate('a', { values: {}, args: {} })
+        ).then(
+          () => 'answered',
+          () => 'no verdict'
+        );
+        await vi.advanceTimersByTimeAsync(after - 1);
+        expect(await Promise.race([answer, Promise.resolve('waiting')])).toBe(
+          'waiting'
+        );
+        await vi.advanceTimersByTimeAsync(1);
+        expect(await answer).toBe('no verdict');
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+  );
+
+  it('stops the request when the binding aborts it, and lets go of its signal', async () => {
+    const fetch = silent();
+    const controller = new AbortController();
+    const remove = vi.spyOn(controller.signal, 'removeEventListener');
+    const answer = remoteGate('/free', { fetch })('a', {
+      values: {},
+      args: {},
+      signal: controller.signal,
+    });
+    controller.abort();
+    await expect(answer).rejects.toThrow('aborted');
+    expect(remove).toHaveBeenCalledOnce();
+    // already aborted when the gate starts
+    await expect(
+      remoteGate('/free', { fetch })('a', {
+        values: {},
+        args: {},
+        signal: controller.signal,
+      })
+    ).rejects.toThrow('aborted');
   });
 
   it('uses globalThis.fetch by default', async () => {

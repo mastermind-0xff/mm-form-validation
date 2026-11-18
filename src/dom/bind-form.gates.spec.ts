@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineForm } from '../core/define-form.js';
 import type { Gate } from '../core/types.js';
+import { remoteGate } from '../gates/remote.js';
 import { text } from '../types/text.js';
 import { bindForm } from './bind-form.js';
 import type { BindOptions } from './bind-form.js';
@@ -242,6 +243,26 @@ describe('bindForm: gates at submit', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(onSubmit).toHaveBeenCalledOnce();
     expect(onSubmit.mock.calls[0]?.[0]).toEqual({ a: 'abc' });
+  });
+
+  it('submits after the timeout when a remote gate never answers', async () => {
+    const silent = vi.fn<typeof fetch>(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            reject(new Error('aborted'));
+          });
+        })
+    );
+    const onSubmit = vi.fn();
+    bind(remoteGate('/free', { fetch: silent }), { onSubmit });
+    input().value = 'abc';
+    submit();
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(onSubmit).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    // no verdict: the server decides
+    expect(onSubmit).toHaveBeenCalledOnce();
   });
 
   it('runs at once a gate still waiting for the pause', async () => {

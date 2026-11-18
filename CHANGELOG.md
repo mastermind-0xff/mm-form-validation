@@ -5,6 +5,9 @@
 - `viesGate`: an answer with `valid: false` and a `userError` other than `INVALID`
   (`MS_UNAVAILABLE`, `TIMEOUT`, `MS_MAX_CONCURRENT_REQ`…) counts as VIES not answering
   ("try again", or `acceptWhenDown`), not as "not registered" kept for a day.
+- `remoteGate` (and so `vatGate`) gives up after `timeout` ms, default 15 s: no verdict,
+  the server decides at submit. A server that never answered kept a submit waiting
+  for good, and the button did nothing.
 
 ## 0.1.0 (unreleased)
 
