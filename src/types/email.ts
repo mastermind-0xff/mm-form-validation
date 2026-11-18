@@ -1,8 +1,9 @@
 /**
  * `email`: trimmed and lower-cased, at most 254 characters. The shape is
- * one `@` and a domain with a dot and a last part of two characters or more;
- * the characters it refuses, which a shape this loose lets through, are named
- * by the `chars` stage instead of one generic message. It checks the shape only: never hand the value to a shell.
+ * loose: one `@`, and a dot in the domain with two characters or more after
+ * it. The characters it refuses, which a shape this loose lets through, are
+ * named by the `chars` stage instead of one generic message. It checks the
+ * shape only: never hand the value to a shell.
  */
 import { nfc } from '../chars.js';
 import { defineType } from '../core/define-type.js';

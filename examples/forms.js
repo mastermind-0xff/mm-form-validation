@@ -44,7 +44,7 @@ export const countries = [
 /** A sign-in form. */
 export const signIn = defineForm({
   email: email({ messages: { required: 'Enter your e-mail.' } }),
-  // signing in checks only that a password was typed (a sign-in has no rules of its own)
+  // signing in checks only that a password was typed: the rules are for choosing one
   password: password({
     min: 1,
     max: 512,

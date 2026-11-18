@@ -82,7 +82,7 @@ a release you could have installed.
   (the default) and `input`. It reads a form as a native submit sends it
   (`new FormData(form)`), picks up a field that already has focus when it loads late,
   and sets attributes only: `data-state`, `data-message`, `required`, `aria-invalid`,
-  `hidden`.
+  `aria-describedby`, `hidden`. It creates a message line for a field that has none.
 - Options `gates` (a name the page doesn't provide is left to the server), `checking`
   (the hint while a gate runs, "Checking…"), `onSubmit` and `onInvalid(blocked, event)`.
   `onInvalid` is called when a submit is blocked: `blocked.errors` are the refused fields

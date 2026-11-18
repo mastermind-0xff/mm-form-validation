@@ -1,6 +1,7 @@
 /**
- * `honeypot`: a field people don't see, so only a bot fills it. Filled with anything (a string, spaces too, a number,
- * `true`) it is refused at `rule`, with a message that doesn't tell why;
+ * `honeypot`: a field people don't see, so only a bot fills it. Filled with
+ * anything (a string, spaces too, a number, `true`) it is refused at `rule`,
+ * with a message that doesn't tell why;
  * something no form sends (an object, an array, `null`) fails at `type`. Its
  * value is always ''. It isn't required (the type's default, so a preset of it
  * isn't either), unless a field says so.

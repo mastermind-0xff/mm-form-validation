@@ -39,11 +39,16 @@ forms of aesweets.com.
 npm install @mmutils/form-validation
 ```
 
-Requires Node.js 22 or newer on the server. In the browser the code is
-compiled for ES2022 (it uses `Object.hasOwn` and Unicode property escapes in
-regular expressions): Chrome and Edge 93, Firefox 92, Safari 15.4 or newer;
-`bindForm` calls `form.requestSubmit` when it held a submit back (Safari 16).
-There are no runtime dependencies, so nothing else is installed with it.
+Requires Node.js 22 or newer on the server. There are no runtime dependencies, so
+nothing else is installed with it.
+
+In the browser the code is compiled for ES2022. The newest feature it needs is
+`Object.hasOwn` (Chrome and Edge 93, Firefox 92, Safari 15.4). `bindForm` calls
+`form.requestSubmit` to send a submit it held back for the gates (Safari 16). The
+shipped looks use `:has()` and `color-mix()` (Chrome and Edge 111, Firefox 121, Safari
+16.2); older browsers miss the required asterisk, the icon look's icons and some
+tints. These versions follow from what the code uses: the browser tests run on current
+Chromium, Firefox and WebKit only.
 
 ## Entry points
 
@@ -120,7 +125,7 @@ generated CSS: `fv-box` marks what shows the state.
 ```html
 <div class="fv-field" data-field="email">
   <label for="email">E-mail</label>
-  <input class="fv-box" id="email" name="email" type="email" />
+  <input class="fv-box" id="email" name="email" autocomplete="email" />
   <p class="fv-message" data-message-for="email"></p>
 </div>
 
@@ -163,7 +168,7 @@ doesn't carry it.
 import { fieldAttributes } from '@mmutils/form-validation';
 
 fieldAttributes(register, 'email');
-// { required: true, inputmode: 'email', autocapitalize: 'none', spellcheck: 'false' }
+// { inputmode: 'email', autocapitalize: 'none', spellcheck: 'false', required: true }
 ```
 
 | Type                                   | Attributes                                                 |
@@ -333,7 +338,7 @@ real person, the way a bot is refused. That has happened: Firefox filled a honey
 | `confirm`       | string  | `of`: the field to match, default `'password'`; compared as that field reads it |
 | `vatNumber`     | string  | `country`: ISO 3166-1 alpha-2 (`BG`) or ''; upper-cased, prefixed               |
 | `code`          | string  | `min` 1, `max` 64, `chars` `'code'`, `upper` false; trimmed                     |
-| `integer`       | number  | `min`, `max`: values; from a number or digits; empty: `undefined` (see below)   |
+| `integer`       | number  | `min`, `max` (any safe integer); from a number or digits; empty: `undefined`    |
 | `honeypot`      | string  | none; refuses anything filled in; always ''; not required                       |
 
 Lengths count code points, so an emoji counts once. Character sets (`chars`): `text`,
@@ -367,18 +372,18 @@ read and normalized, not yet checked.
 A value goes through these stages, and the first that fails gives the message and the
 `stage` of the error:
 
-| Stage      | Fails when                                                                                          |
-| ---------- | --------------------------------------------------------------------------------------------------- |
-| `type`     | the raw value can't be read as the type's (an object, `null`: only a hostile client)                |
-| `length`   | far over `max` (more than 4 times, in UTF-16 units), before anything is normalized                  |
-| `required` | the field is required and empty                                                                     |
-| `chars`    | a character is not in the set; the message names it                                                 |
-| `length`   | fewer than `min` or more than `max` code points                                                     |
-| `contains` | the value has no character of the kind asked for                                                    |
-| `lines`    | a `multiline` has more than `maxLines` lines                                                        |
-| `pattern`  | the value doesn't have the type's shape (`email`, `vatNumber`, `integer`)                           |
-| `rule`     | the type's own check (`select`, `confirm`, `vatNumber`'s country, `honeypot`) or the field's `rule` |
-| `gate`     | one of the field's gates refused it (below)                                                         |
+| Stage      | Fails when                                                                                                                        |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `type`     | the raw value can't be read as the type's (an object, `null`: only a hostile client)                                              |
+| `length`   | far over `max` (more than 4 times, in UTF-16 units), before anything is normalized                                                |
+| `required` | the field is required and empty                                                                                                   |
+| `chars`    | a character is not in the set; the message names it                                                                               |
+| `length`   | fewer than `min` or more than `max` code points                                                                                   |
+| `contains` | the value has no character of the kind asked for                                                                                  |
+| `lines`    | a `multiline` has more than `maxLines` lines                                                                                      |
+| `pattern`  | the value doesn't have the type's shape (`email`, `vatNumber`, `integer`)                                                         |
+| `rule`     | the type's own check (`select`, `confirm`, `integer`'s range, `vatNumber`'s country and prefix, `honeypot`) or the field's `rule` |
+| `gate`     | one of the field's gates refused it (below)                                                                                       |
 
 A type lists its own stages in its own order. Each has a default message in English,
 plain text (it goes into `textContent`). Replace one per field with `messages`, by stage
