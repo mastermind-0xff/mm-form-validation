@@ -5,8 +5,9 @@
  *   browser: vatGate → your endpoint → answerVatCheck → viesGate → VIES
  *   server:  parseAsync at submit                     → viesGate → VIES
  *
- * The server never saves an unchecked number: its limit answers "try again",
- * it doesn't let the value through. The browser's limit only saves requests.
+ * The server never saves an unchecked number unless you give `acceptWhenDown`:
+ * its limits answer "try again", they don't let the value through. The
+ * browser's limit only saves requests.
  */
 import type { Gate, GateRefusal } from '../core/types.js';
 import { EU_VAT_FORMATS, vatNumber } from '../types/vat-number.js';
@@ -23,7 +24,8 @@ const RETRY_WHEN_DOWN = 60_000;
 export interface ViesOptions extends LimitOptions {
   /**
    * Checks across all callers in a minute, so that many callers can't get this
-   * server blocked by VIES. Default 120.
+   * server blocked by VIES. Default 120. Over it VIES isn't asked, which counts as
+   * VIES not answering.
    */
   readonly perMinute?: number;
   /** How long VIES may take, in ms. Default 10 s. */
@@ -35,7 +37,8 @@ export interface ViesOptions extends LimitOptions {
   /**
    * VIES is often down for a country. By default the form is refused until it is
    * back. With this function the value passes instead, and the function is told,
-   * so that the application can check the number again later.
+   * so that the application can check the number again later. The same when the
+   * checks of the minute (`perMinute`) are spent: a few callers can spend them.
    */
   readonly acceptWhenDown?: (vatNumber: string) => void;
   /** Replaces `globalThis.fetch`. */
@@ -74,10 +77,12 @@ export function viesGate(options: ViesOptions = {}): LimitedGate {
     remember = 86_400_000,
     ...limit
   } = options;
+  const { now = Date.now } = limit;
+  /** This server's checks of VIES in the current minute, all callers together. */
+  let minute = { start: -Infinity, count: 0 };
 
-  const ask: Gate = async (value, { args }) => {
-    if (!inEu(countryOf(args))) return undefined;
-    let valid: unknown;
+  /** VIES's verdict, `true` or `false`; anything else is no answer. */
+  const verdict = async (value: string): Promise<unknown> => {
     try {
       const response = await (send ?? globalThis.fetch)(url, {
         method: 'POST',
@@ -91,41 +96,46 @@ export function viesGate(options: ViesOptions = {}): LimitedGate {
         // which would pass every number unchecked with `acceptWhenDown`
         signal: AbortSignal.timeout(Math.min(timeout, 2_147_483_647)),
       });
-      if (response.ok) {
-        const answer = (await response.json()) as {
-          readonly valid?: unknown;
-          readonly userError?: unknown;
-        };
-        // `valid: false` with MS_UNAVAILABLE, TIMEOUT, MS_MAX_CONCURRENT_REQ…
-        // is VIES failing, not a verdict: kept for a day, it would refuse a
-        // registered number for everyone
-        const { userError } = answer;
-        if (
-          typeof userError !== 'string' ||
-          userError === 'VALID' ||
-          userError === 'INVALID'
-        )
-          ({ valid } = answer);
-      }
+      if (!response.ok) return undefined;
+      const answer = (await response.json()) as {
+        readonly valid?: unknown;
+        readonly userError?: unknown;
+      };
+      // `valid: false` with MS_UNAVAILABLE, TIMEOUT, MS_MAX_CONCURRENT_REQ…
+      // is VIES failing, not a verdict: kept for a day, it would refuse a
+      // registered number for everyone
+      const { userError } = answer;
+      const failing =
+        typeof userError === 'string' &&
+        userError !== 'VALID' &&
+        userError !== 'INVALID';
+      return failing ? undefined : answer.valid;
     } catch {
-      // no answer: below
+      return undefined;
+    }
+  };
+
+  const ask: Gate = async (value, { args }) => {
+    if (!inEu(countryOf(args))) return undefined;
+    const time = now();
+    if (time - minute.start >= 60_000) minute = { start: time, count: 0 };
+    // over the checks of the minute VIES isn't asked: the same as no answer
+    let retryAfter = minute.start + 60_000 - time;
+    let valid: unknown;
+    if (minute.count < perMinute) {
+      minute.count++;
+      retryAfter = RETRY_WHEN_DOWN;
+      valid = await verdict(value);
     }
     if (valid === true) return undefined;
     if (valid === false) return invalid;
     if (acceptWhenDown === undefined)
-      return { message: unavailable, retryAfter: RETRY_WHEN_DOWN };
+      return { message: unavailable, retryAfter };
     acceptWhenDown(value);
     return UNCHECKED;
   };
 
-  const all = limitChecks(ask, {
-    ...limit,
-    free: perMinute,
-    cooldown: 60_000,
-    remember: 0,
-    message: () => unavailable,
-  });
-  return limitChecks(all, { ...limit, free, cooldown, remember });
+  return limitChecks(ask, { ...limit, free, cooldown, remember });
 }
 
 /** What an endpoint for `vatGate` sends back, with status 200. */

@@ -154,6 +154,38 @@ describe('viesGate', () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
+  it('with acceptWhenDown lets a number pass when the checks of the minute are spent', async () => {
+    // a dozen callers can spend them: a checkout must not stop for everyone
+    let time = 0;
+    const fetch = fakeFetch(() => json({ valid: true }));
+    const acceptWhenDown = vi.fn();
+    const gate = viesGate({
+      fetch,
+      perMinute: 2,
+      acceptWhenDown,
+      now: () => time,
+    });
+    await gate.for('a')('BG123456781', bg);
+    await gate.for('b')('BG123456782', bg);
+    const third = await gate.for('c')('BG123456783', bg);
+    expect(typeof third === 'object' && third?.message).toBe('');
+    expect(acceptWhenDown).toHaveBeenCalledWith('BG123456783');
+    expect(fetch).toHaveBeenCalledTimes(2);
+    // the next minute VIES is asked again, and the answer is remembered
+    time = 60_000;
+    expect(await gate.for('c')('BG123456783', bg)).toBeUndefined();
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('spends none of the checks of the minute on a number outside the EU', async () => {
+    const fetch = fakeFetch(() => json({ valid: true }));
+    const gate = viesGate({ fetch, perMinute: 1 });
+    const us = { values: {}, args: { country: 'US' } };
+    await gate.for('a')('ABC123', us);
+    expect(await gate.for('b')('BG123456789', bg)).toBeUndefined();
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
   it('uses the messages given', async () => {
     const gate = viesGate({
       fetch: fakeFetch(() => json({ valid: false })),

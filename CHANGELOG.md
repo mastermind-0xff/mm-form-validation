@@ -83,7 +83,10 @@ a release you could have installed.
   long, about 24 days, instead of firing at once.
 - `viesGate` takes only VIES's verdicts as answers: `valid: false` with a `userError`
   other than `INVALID` (`MS_UNAVAILABLE`, `TIMEOUT`, `MS_MAX_CONCURRENT_REQ`…) is VIES
-  not answering ("try again", or `acceptWhenDown`) and is never remembered.
+  not answering ("try again", or `acceptWhenDown`) and is never remembered. So is a
+  check over `perMinute` (all callers together), which isn't sent: a few callers can
+  spend those, and with `acceptWhenDown` a checkout goes on. A number outside the EU
+  doesn't count against `perMinute`.
 
 ### Browser binding (`./dom`)
 

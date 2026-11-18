@@ -634,7 +634,7 @@ bindForm(element, billing, { gates: { vies: vatGate() }, onSubmit });
 | Options           | `free`, `cooldown`, `timeout`            | `free`, `cooldown`, `perMinute`, `timeout`         |
 | Waits             | 15 s, then no verdict                    | 10 s for VIES, then "VIES is down"                 |
 | Same number again | from memory, for an hour                 | from memory, for a day (`remember`)                |
-| Over the limit    | "Try again in 25 s", then asks by itself | refuses the form: never saved unchecked            |
+| Over the limit    | "Try again in 25 s", then asks by itself | refuses the form; over 120 in all: as VIES down    |
 | VIES is down      | shows the server's answer                | refuses, "try again" (or `acceptWhenDown`)         |
 
 `country` must give an ISO 3166-1 alpha-2 code in capitals (`BG`; `GR` for Greece, `GB`
@@ -658,11 +658,13 @@ Count IPv6 clients by their /64 prefix: one machine often has a whole /64.
 
 Numbers outside the EU pass, as VIES doesn't know them. Only VIES's verdicts count:
 an answer like `MS_UNAVAILABLE`, `TIMEOUT` or `MS_MAX_CONCURRENT_REQ` is "VIES is
-down", never remembered. VIES is often down for one country or another, and the 120
-checks a minute in all, which keep your server in good standing with VIES, are shared:
-a dozen callers with 10 new numbers each use them up, and everyone else hears "try
-again" for the rest of the minute. For a checkout, take the order anyway and check the
-number later:
+down", never remembered. VIES is often down for one country or another. The 120 checks
+a minute in all keep your server in good standing with VIES, and they are shared: a
+dozen callers with 10 new numbers each use them up, and until the minute ends VIES
+isn't asked, which counts as down too. By default the form is then refused ("try
+again"), for everyone. For a checkout, take the order anyway and check the number
+later: `acceptWhenDown` lets the number pass in both cases and tells you. A caller
+over its own 10 a minute is still refused.
 
 ```js
 const vies = viesGate({ acceptWhenDown: (number) => queue(number) });
