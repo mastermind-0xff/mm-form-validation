@@ -30,7 +30,7 @@ export const code = /* @__PURE__ */ defineType<CodeArgs>({
   name: 'code',
   defaults: { min: 1, max: 64, chars: 'code', upper: false },
   normalize: (value) => value.trim(),
-  stages: [stored(chars), stored(length)],
+  stages: [/* @__PURE__ */ stored(chars), /* @__PURE__ */ stored(length)],
   finish: (value, { upper }) => (upper ? value.toUpperCase() : value),
   examples: ({ min, max, chars: set }) =>
     textExamples({ min, max, chars: set, contains: undefined }),

@@ -26,9 +26,12 @@ export const email = /* @__PURE__ */ defineType<EmailArgs>({
   defaults: { min: 1, max: 254 },
   normalize: (value) => nfc(value).trim().toLowerCase(),
   stages: [
-    charsOf(BAD),
+    /* @__PURE__ */ charsOf(BAD),
     length,
-    pattern(SHAPE, 'Enter a valid e-mail, like name@example.com.'),
+    /* @__PURE__ */ pattern(
+      SHAPE,
+      'Enter a valid e-mail, like name@example.com.'
+    ),
   ],
   examples: ({ max }) => {
     const long = max > DOMAIN.length;

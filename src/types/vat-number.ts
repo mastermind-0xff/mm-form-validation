@@ -180,7 +180,7 @@ export const vatNumber = /* @__PURE__ */ defineType<VatNumberArgs>({
           }
         : undefined,
     },
-    charsOf(/[^A-Z0-9]/u),
+    /* @__PURE__ */ charsOf(/[^A-Z0-9]/u),
     {
       // another country's prefix: no more typing fixes that
       name: 'rule',
