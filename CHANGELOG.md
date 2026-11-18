@@ -4,7 +4,7 @@
 
 - Smaller bundles: a form whose fields name no character set (`email`, `password`,
   `select`, `checkbox`, `vatNumber`…) no longer carries `charSets`: a sign-in page
-  (`email`, `password`, `bindForm`) is 318 B smaller gzipped (4803 -> 4485).
+  (`email`, `password`, `bindForm`) is 312 B smaller gzipped (4803 -> 4491).
 - Importing `vatPrefix` or `EU_VAT_FORMATS` no longer brings the whole `vatNumber`
   type with it (`vatPrefix` alone: 2549 -> 77 B gzipped).
 - `bindForm` checks a field only once it has been reached (focused, changed,
