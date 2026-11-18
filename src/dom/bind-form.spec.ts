@@ -113,6 +113,32 @@ describe('bindForm: setup', () => {
     expect(elements).toHaveBeenCalledTimes(1);
   });
 
+  it('checks only the fields reached so far', () => {
+    const checked = new Set<string>();
+    for (const name of schema.names) {
+      const field: Field = schema.fields[name];
+      const check = field.check.bind(field);
+      vi.spyOn(field, 'check').mockImplementation((...args) => {
+        checked.add(name);
+        return check(...args);
+      });
+    }
+    try {
+      control('name').value = 'Ana';
+      control('email').value = 'ana@';
+      const bound = bind();
+      expect([...checked]).toEqual([]);
+      type('name', 'Anna');
+      expect([...checked]).toEqual(['name']);
+      expect(box('email').hasAttribute('data-state')).toBe(false);
+      bound.validate();
+      expect(checked.size).toBeGreaterThan(1);
+      expect(box('email').dataset['state']).toBe('invalid');
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
   it('takes the first wrapper and the first line of a name, in document order', () => {
     document.body.innerHTML = `<form>
       <div data-field="other"></div>

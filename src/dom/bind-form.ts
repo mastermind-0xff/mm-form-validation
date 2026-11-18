@@ -334,7 +334,10 @@ export function bindForm<F extends FormFields>(
     let kind: 'hint' | 'error' | undefined;
     let message = '';
     let pending = false;
-    if (active) {
+    // a field nobody has reached shows nothing whatever its value (a server
+    // message touches it), so it isn't checked: binding a form compiles no
+    // regex, and a keystroke checks only the fields reached so far
+    if (active && (slot.touched || focused === slot)) {
       let result: FieldResult<unknown> = field.check(
         raw[slot.name],
         view,

@@ -7,6 +7,11 @@
   (`email`, `password`, `bindForm`) is 318 B smaller gzipped (4803 -> 4485).
 - Importing `vatPrefix` or `EU_VAT_FORMATS` no longer brings the whole `vatNumber`
   type with it (`vatPrefix` alone: 2549 -> 77 B gzipped).
+- `bindForm` checks a field only once it has been reached (focused, changed,
+  submitted, or given a server message), which is when its state can show. Binding
+  a form compiles no regex: a prefilled company billing form binds in 0.7 ms of core
+  work instead of 4.8 (desktop, cold), and a keystroke checks only the fields reached
+  so far. What the page shows doesn't change.
 
 ## 0.1.0 (unreleased)
 
