@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.1.0
 
-First public release. The package was developed in a private repository and used in
+First public release. The package was developed privately and used in
 one project before this; version 0.0.0 was never published, so nothing below changes
 a release you could have installed.
 

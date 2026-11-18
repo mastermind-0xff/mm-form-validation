@@ -1,6 +1,6 @@
 {
   "name": "@mmutils/form-validation",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Isomorphic TypeScript form validation: one field schema for the browser and the server, typed fields checked in stages with the same code on both sides, live messages while typing, gates for your own checks, and a test contract for every field type.",
   "keywords": [
     "form",
